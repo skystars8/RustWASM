@@ -1,0 +1,1940 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0d1110">
+  <title>Atomic Lockbox — private file encryption</title>
+  <style>
+    :root {
+      --ink: #f4f0e7;
+      --muted: #a9afa8;
+      --faint: #929b94;
+      --canvas: #0d1110;
+      --panel: #151b18;
+      --panel-2: #1a211d;
+      --line: #2b342f;
+      --acid: #c9f56a;
+      --acid-ink: #172006;
+      --blue: #8ec8ff;
+      --danger: #ff8f7c;
+      --warning: #ffd078;
+      --success: #8de0b0;
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --shadow: 0 30px 90px rgba(0, 0, 0, .34);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 13% 2%, rgba(201, 245, 106, .09), transparent 29rem),
+        radial-gradient(circle at 92% 22%, rgba(142, 200, 255, .07), transparent 32rem),
+        var(--canvas);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    [hidden] { display: none !important; }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 86px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 760;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      border: 1px solid rgba(201, 245, 106, .52);
+      border-radius: 9px;
+      background: rgba(201, 245, 106, .09);
+    }
+
+    .brand-mark::before {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 8px;
+      left: 9px;
+      top: 11px;
+      border: 2px solid var(--acid);
+      border-radius: 2px;
+    }
+
+    .brand-mark::after {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 7px;
+      left: 10px;
+      top: 6px;
+      border: 2px solid var(--acid);
+      border-bottom: 0;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .privacy-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 680;
+      letter-spacing: .02em;
+    }
+
+    .privacy-chip::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 5px rgba(141, 224, 176, .08);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, .82fr) minmax(520px, 1.18fr);
+      gap: clamp(32px, 7vw, 90px);
+      align-items: center;
+      padding: 66px 0 46px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 24px;
+      color: var(--acid);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 26px;
+      height: 1px;
+      background: currentColor;
+    }
+
+    h1 {
+      max-width: 610px;
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(46px, 6.5vw, 78px);
+      font-weight: 400;
+      line-height: .98;
+      letter-spacing: -.048em;
+    }
+
+    .hero-copy {
+      max-width: 540px;
+      margin: 27px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.66;
+    }
+
+    .promise-list {
+      display: grid;
+      gap: 13px;
+      margin: 34px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .promise-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #d7d8d1;
+      font-size: 13px;
+      font-weight: 630;
+    }
+
+    .promise-list li::before {
+      content: "";
+      flex: 0 0 auto;
+      width: 17px;
+      height: 17px;
+      border: 1px solid #4b5b51;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--acid) 0 2px, transparent 3px);
+    }
+
+    .app-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: rgba(21, 27, 24, .95);
+      box-shadow: var(--shadow);
+    }
+
+    .app-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(201, 245, 106, .5), transparent);
+    }
+
+    .app-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 21px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .015);
+    }
+
+    .app-head-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 770;
+      letter-spacing: .025em;
+    }
+
+    .commit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid #39483f;
+      border-radius: 999px;
+      color: #c7cec8;
+      font-size: 10px;
+      font-weight: 760;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .commit-badge::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--acid);
+    }
+
+    .app-body { padding: 24px; }
+
+    .browser-warning {
+      margin-bottom: 18px;
+      padding: 14px 15px;
+      border: 1px solid rgba(255, 208, 120, .35);
+      border-radius: 13px;
+      color: #f5ddb0;
+      background: rgba(255, 208, 120, .07);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .step-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 0 10px;
+      color: #d8dbd5;
+      font-size: 11px;
+      font-weight: 790;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .step-number { color: var(--faint); }
+
+    .file-picker {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 13px;
+      min-height: 76px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel-2);
+    }
+
+    .file-icon {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 48px;
+      border: 1px solid #485149;
+      border-radius: 9px 9px 12px 12px;
+      color: var(--acid);
+      background: #111613;
+      font-size: 9px;
+      font-weight: 830;
+      letter-spacing: .07em;
+    }
+
+    .file-copy { min-width: 0; }
+
+    .file-name {
+      overflow: hidden;
+      margin: 0 0 5px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 720;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-meta {
+      overflow: hidden;
+      margin: 0;
+      color: var(--faint);
+      font-size: 11px;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .secondary-button, .mode-button, .reveal-button, .cancel-button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .secondary-button {
+      padding: 10px 12px;
+      border: 1px solid #414b44;
+      border-radius: 10px;
+      color: #dde1da;
+      background: #202823;
+      font-size: 11px;
+      font-weight: 730;
+      transition: border-color .18s ease, background .18s ease;
+    }
+
+    .secondary-button:hover:not(:disabled) {
+      border-color: #5e6d63;
+      background: #252f29;
+    }
+
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--blue);
+      outline-offset: 3px;
+    }
+
+    button:disabled { cursor: not-allowed; opacity: .48; }
+
+    .form-section { margin-top: 22px; }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #101512;
+    }
+
+    .mode-button {
+      padding: 11px 12px;
+      border-radius: 9px;
+      color: var(--faint);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 740;
+      transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+
+    .mode-button[aria-pressed="true"] {
+      color: var(--ink);
+      background: #28312b;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .22);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field { min-width: 0; }
+
+    .field-label {
+      display: block;
+      margin: 0 0 8px;
+      color: #c7ccc6;
+      font-size: 11px;
+      font-weight: 690;
+    }
+
+    .input-wrap { position: relative; }
+
+    .password-input {
+      width: 100%;
+      height: 46px;
+      padding: 0 56px 0 13px;
+      border: 1px solid #3a453e;
+      border-radius: 11px;
+      color: var(--ink);
+      background: #101512;
+      font-size: 13px;
+      transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .password-input:hover { border-color: #4b5850; }
+
+    .password-input:focus {
+      border-color: rgba(142, 200, 255, .8);
+      outline: 0;
+      box-shadow: 0 0 0 3px rgba(142, 200, 255, .1);
+    }
+
+    .reveal-button {
+      position: absolute;
+      top: 50%;
+      right: 7px;
+      padding: 7px;
+      border-radius: 7px;
+      color: var(--faint);
+      background: transparent;
+      font-size: 10px;
+      font-weight: 730;
+      transform: translateY(-50%);
+    }
+
+    .reveal-button:hover:not(:disabled) { color: var(--ink); }
+
+    .password-help {
+      min-height: 17px;
+      margin: 8px 0 0;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .password-help.good { color: var(--success); }
+    .password-help.warn { color: var(--warning); }
+
+    .action-note {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 13px 14px;
+      border: 1px solid #343e38;
+      border-radius: 12px;
+      color: #aeb5af;
+      background: rgba(255, 255, 255, .018);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .action-note::before {
+      content: "i";
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      border: 1px solid #59655d;
+      border-radius: 50%;
+      color: #d4d9d4;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .primary-button {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 15px;
+      padding: 13px 18px;
+      border: 0;
+      border-radius: 13px;
+      color: var(--acid-ink);
+      background: var(--acid);
+      box-shadow: 0 12px 30px rgba(201, 245, 106, .12);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 840;
+      transition: transform .16s ease, filter .16s ease;
+    }
+
+    .primary-button:hover:not(:disabled) {
+      filter: brightness(1.04);
+      transform: translateY(-1px);
+    }
+
+    .primary-button:active:not(:disabled) { transform: translateY(0); }
+    .primary-button:disabled { cursor: not-allowed; filter: saturate(.45); }
+
+    .progress-panel {
+      margin-top: 15px;
+      padding: 15px;
+      border: 1px solid #354039;
+      border-radius: 13px;
+      background: #111613;
+    }
+
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 11px;
+    }
+
+    .progress-label {
+      overflow: hidden;
+      color: #d6dbd5;
+      font-size: 11px;
+      font-weight: 690;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .progress-value {
+      flex: 0 0 auto;
+      color: var(--acid);
+      font-variant-numeric: tabular-nums;
+      font-size: 10px;
+      font-weight: 780;
+    }
+
+    .progress-track {
+      overflow: hidden;
+      height: 5px;
+      border-radius: 99px;
+      background: #2a332e;
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--acid);
+      transition: width .15s linear;
+    }
+
+    .progress-bar.indeterminate {
+      width: 36%;
+      animation: scan 1.15s ease-in-out infinite;
+    }
+
+    @keyframes scan {
+      from { transform: translateX(-110%); }
+      to { transform: translateX(300%); }
+    }
+
+    .cancel-button {
+      width: 100%;
+      margin-top: 9px;
+      padding: 8px;
+      color: #9da59f;
+      background: transparent;
+      font-size: 10px;
+      font-weight: 730;
+    }
+
+    .cancel-button:hover:not(:disabled) { color: var(--danger); }
+
+    .outcome {
+      display: grid;
+      grid-template-columns: 9px minmax(0, 1fr);
+      gap: 11px;
+      align-items: start;
+      margin-top: 15px;
+      padding: 13px 14px;
+      border: 1px solid #303a34;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .015);
+    }
+
+    .outcome-dot {
+      width: 7px;
+      height: 7px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--faint);
+    }
+
+    .outcome.success { border-color: rgba(141, 224, 176, .32); }
+    .outcome.success .outcome-dot { background: var(--success); }
+    .outcome.error { border-color: rgba(255, 143, 124, .34); }
+    .outcome.error .outcome-dot { background: var(--danger); }
+    .outcome.warning { border-color: rgba(255, 208, 120, .33); }
+    .outcome.warning .outcome-dot { background: var(--warning); }
+
+    .outcome-title {
+      margin: 0 0 3px;
+      color: #dce0da;
+      font-size: 11px;
+      font-weight: 730;
+    }
+
+    .outcome-detail {
+      margin: 0;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .facts {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      padding: 48px 0 70px;
+    }
+
+    .fact {
+      min-height: 164px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: rgba(21, 27, 24, .62);
+    }
+
+    .fact-index {
+      display: block;
+      margin-bottom: 31px;
+      color: var(--acid);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+    }
+
+    .fact h2 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .fact p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.65;
+    }
+
+    .format-notes {
+      margin-bottom: 72px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .format-notes summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 2px;
+      color: #d8dbd6;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 710;
+      list-style: none;
+    }
+
+    .format-notes summary::-webkit-details-marker { display: none; }
+    .format-notes summary::after { content: "+"; color: var(--acid); font-size: 18px; font-weight: 400; }
+    .format-notes[open] summary::after { content: "−"; }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      padding: 0 2px 24px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .notes-grid p { margin: 0; }
+    .notes-grid strong { color: #dce0da; font-weight: 720; }
+
+    .site-footer {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 28px;
+      padding: 0 0 34px;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .site-footer p { max-width: 650px; margin: 0; }
+
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding-top: 44px;
+      }
+
+      .hero-intro { max-width: 680px; }
+      .promise-list { grid-template-columns: repeat(3, 1fr); gap: 18px; }
+      .promise-list li { align-items: flex-start; }
+    }
+
+    @media (max-width: 660px) {
+      .shell { width: min(100% - 24px, 560px); }
+      .site-header { min-height: 70px; }
+      .hero { gap: 34px; padding: 38px 0 25px; }
+      h1 { font-size: clamp(45px, 15vw, 64px); }
+      .hero-copy { font-size: 15px; }
+      .promise-list { grid-template-columns: 1fr; }
+      .app-body, .app-head { padding-left: 17px; padding-right: 17px; }
+      .file-picker { grid-template-columns: 40px minmax(0, 1fr); }
+      .file-picker .secondary-button { grid-column: 1 / -1; width: 100%; }
+      .field-row { grid-template-columns: 1fr; }
+      .facts { grid-template-columns: 1fr; padding-bottom: 48px; }
+      .fact { min-height: 0; }
+      .fact-index { margin-bottom: 20px; }
+      .notes-grid { grid-template-columns: 1fr; gap: 16px; }
+      .site-footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header shell">
+    <a class="brand" href="#top" aria-label="Atomic Lockbox home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Atomic Lockbox</span>
+    </a>
+    <div class="privacy-chip"><span>On-device</span></div>
+  </header>
+
+  <main id="top">
+    <section class="hero shell">
+      <div class="hero-intro">
+        <p class="eyebrow">Private file utility</p>
+        <h1>Lock a file.<br>Keep its place.</h1>
+        <p class="hero-copy">Encrypt or decrypt one local file with a password. A Rust/WebAssembly core streams authenticated chunks, and the browser replaces the selected path only after the complete result is ready.</p>
+        <ul class="promise-list" aria-label="Key properties">
+          <li>No upload, account, or server</li>
+          <li>Memory-hard password protection</li>
+          <li>Best-effort staged replacement</li>
+        </ul>
+      </div>
+
+      <section class="app-card" aria-labelledby="tool-title">
+        <div class="app-head">
+          <h2 class="app-head-title" id="tool-title">File transformer</h2>
+          <span class="commit-badge">Commit on close</span>
+        </div>
+
+        <div class="app-body">
+          <div class="browser-warning" id="browser-warning" role="alert" hidden></div>
+
+          <p class="step-label"><span>Select the local file</span><span class="step-number">01</span></p>
+          <div class="file-picker">
+            <div class="file-icon" id="file-icon" aria-hidden="true">FILE</div>
+            <div class="file-copy">
+              <p class="file-name" id="file-name">No file selected</p>
+              <p class="file-meta" id="file-meta">The page receives a revocable handle, not an upload.</p>
+            </div>
+            <button class="secondary-button" id="choose-button" type="button">Choose file</button>
+          </div>
+
+          <div class="form-section">
+            <p class="step-label"><span>Choose the operation</span><span class="step-number">02</span></p>
+            <div class="mode-switch" role="group" aria-label="Operation">
+              <button class="mode-button" id="encrypt-mode" type="button" aria-pressed="true">Encrypt</button>
+              <button class="mode-button" id="decrypt-mode" type="button" aria-pressed="false">Decrypt</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <p class="step-label"><span>Enter the password</span><span class="step-number">03</span></p>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label" for="password">Password</label>
+                <div class="input-wrap">
+                  <input class="password-input" id="password" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false" aria-describedby="password-help" aria-invalid="false">
+                  <button class="reveal-button" type="button" data-reveal="password" aria-label="Show password">Show</button>
+                </div>
+              </div>
+              <div class="field" id="confirm-field">
+                <label class="field-label" for="confirm-password">Confirm password</label>
+                <div class="input-wrap">
+                  <input class="password-input" id="confirm-password" type="password" maxlength="1024" autocomplete="new-password" spellcheck="false" aria-describedby="password-help" aria-invalid="false">
+                  <button class="reveal-button" type="button" data-reveal="confirm-password" aria-label="Show confirmed password">Show</button>
+                </div>
+              </div>
+            </div>
+            <p class="password-help" id="password-help">Use a memorable passphrase of at least 12 characters. There is no password recovery.</p>
+          </div>
+
+          <div class="action-note" id="action-note">Encryption replaces the selected file after a successful staged write. Keep a backup until you have tested your password.</div>
+          <button class="primary-button" id="action-button" type="button" disabled>Encrypt &amp; replace original</button>
+
+          <div class="progress-panel" id="progress-panel" role="status" aria-live="polite" hidden>
+            <div class="progress-top">
+              <span class="progress-label" id="progress-label">Preparing secure workspace…</span>
+              <span class="progress-value" id="progress-value">0%</span>
+            </div>
+            <div class="progress-track" id="progress-track" role="progressbar" aria-label="File transformation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <button class="cancel-button" id="cancel-button" type="button">Cancel and keep original</button>
+          </div>
+
+          <div class="outcome" id="outcome" role="status" aria-live="polite" tabindex="-1">
+            <span class="outcome-dot" aria-hidden="true"></span>
+            <div>
+              <p class="outcome-title" id="outcome-title">Ready when you are</p>
+              <p class="outcome-detail" id="outcome-detail">Choose a file to begin. The handle is forgotten when this page closes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="facts shell" aria-label="How Atomic Lockbox works">
+      <article class="fact">
+        <span class="fact-index">01</span>
+        <h2>Private by construction</h2>
+        <p>The page contains its Rust/Wasm engine and, after loading, makes no network request. File bytes and the password stay in this browser process.</p>
+      </article>
+      <article class="fact">
+        <span class="fact-index">02</span>
+        <h2>Tamper-evident chunks</h2>
+        <p>Argon2id derives a 256-bit key. XChaCha20-Poly1305 authenticates the header and every 4 MiB chunk before decryption can commit.</p>
+      </article>
+      <article class="fact">
+        <span class="fact-index">03</span>
+        <h2>Staged replacement</h2>
+        <p>The browser keeps staged bytes invisible until close, then attempts one complete replacement. Cancellation and failed authentication abort before commit.</p>
+      </article>
+    </section>
+
+    <details class="format-notes shell">
+      <summary>Security and format notes</summary>
+      <div class="notes-grid">
+        <p><strong>Format.</strong> PWCRYPT v1 stores a 96-byte authenticated header, a 16-byte header tag, then independently authenticated chunks. The header records the exact original byte length, salt, nonce prefix, chunk size, and Argon2id parameters. Filenames and timestamps are not hidden.</p>
+        <p><strong>Limits.</strong> Atomic replacement is the browser and filesystem’s best-effort commit behavior, not secure erasure or a power-loss durability guarantee. Backups, snapshots, journals, SSD wear leveling, cloud history, and temporary artifacts may retain old data. A native tool is required for stronger guarantees.</p>
+        <p><strong>Compatibility.</strong> Direct local-file replacement requires the File System Access API in a top-level secure context. Current desktop Chrome and Edge are the intended browsers. An ordinary file upload control cannot safely overwrite its source path.</p>
+        <p><strong>Password safety.</strong> Password guessing can happen offline, so use a long, unique passphrase. JavaScript strings, browser memory, and operating-system caches cannot be reliably wiped. This utility deliberately offers no reset, escrow, or recovery path.</p>
+      </div>
+    </details>
+  </main>
+
+  <footer class="site-footer shell">
+    <p>Atomic Lockbox is a self-contained local utility. Review and keep this HTML file alongside the data format you intend to preserve.</p>
+    <span>PWCRYPT v1 · Rust/Wasm</span>
+  </footer>
+
+  <script id="wasm-module" type="application/wasm">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ai0AACAGQegBaiAAai0AAHMiAUEAIAFrcsBBf0oQkYCAgAAgB3EhByAAQQFqIgBBEEcNAAsCQAJAIAcQkYCAgABB/wFxDQAgBkEsahCAgICAAEEAIQADQCAEIABqQQA6AAAgBSAAQQFqIgBHDQALIAYgBTYCMCAGIAQ2AiwgBkEsaiEAQX4hBwwBCyAGQeQAaiAEIAkQg4CAgAAgBkEsahCAgICAAEFwIQADQCADIABqQQA6AAAgAEEBaiIADQALIAZBEDYCMCAGIAI2AiwgBkEsaiEAQQAhByACIQQLIAQQgYCAgABBACEAA0AgBkEIaiAAakEAOgAAIABBAWoiAEEgRw0ACyAGQSA2AjAgBiAGQQhqNgIsIAZBLGohACAGQQhqEIGAgIAACyAGQfACaiSAgICAACAHC8wDBwF+AX8CfgF/BH4BfwZ+IAAgASgAA0ECdkH///8fcSAAKAIoaq0iAiAAKAIUIgOtIgR+IAEoAABB////H3EgACgCJGqtIgUgACgCGCIGrSIHfnwgASgABkEEdkH///8fcSAAKAIsaq0iCCAANQIQIgl+fCABKAAJQQZ2IAAoAjBqrSIKIAAoAiAiC0EFbK0iDH58IAAoAjQgASgADEEIdmpBgICACGqtIg0gACgCHCIBQQVsrSIOfnwgAiAJfiAFIAR+fCAIIAx+fCAKIA5+fCANIAZBBWytIg9+fCACIAx+IAUgCX58IAggDn58IAogD358IA0gA0EFbK1+fCIOQhqIQv////8Pg3wiD0IaiEL/////D4N8IhCnQf///x9xNgIsIAAgAiAHfiAFIAGtIhF+fCAIIAR+fCAKIAl+fCANIAx+fCAQQhqIQv////8Pg3wiDKdB////H3E2AjAgACACIBF+IAUgC61+fCAIIAd+fCAKIAR+fCANIAl+fCAMQhqIQv////8Pg3wiAqdB////H3E2AjQgACACQhqIp0EFbCAOp0H///8fcWoiAUH///8fcTYCJCAAIAFBGnYgD6dB////H3FqNgIoC84CAg1/AX4gACABKAIsIAEoAigiAkEadmoiA0EadiABKAIwaiIEQRp2IAEoAjRqIgVBGnZBBWwgASgCJGoiBkH///8fcSIHQQVqIghBGnYgBkEadiACQf///x9xaiIGaiICQRp2IANB////H3EiCWoiCkEadiAEQf///x9x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ISRCACElA0AgCkHAAGpBAEGACPwLACAKQcAIakEAQYAI/AsAIApBwBBqQQBBgAj8CwACQAJAAkACQCAMRQ0AIApCAjcD6AggCiAcNwPgCCAKIB03A9gIIAogITcD0AggCiAlNwPICCAKQgA3A8AIICRQRQ0BIApBwABqIApBwAhqIApBwBBqEJeAgIAADAILICRQDQELIAEgJadsIBdqIgIgI2ohCEEAIQMgIiETIBchFgwBC0ECIQNBACEWQQEhEyABICWnbEECciICIQgLAkAgAyANTw0AIBZBf2ohFSAIQX9qIQggECACQQp0aiEPICWnIRQDQAJAAkACQAJAAkACQAJAAkACQAJAIAwNACAIIARPDQQgGiAIQQp0aikDACEmIAsNASAlICZCIIinIAZwIg6tUQ0CIBggA0VrIQAMAwsCQCADQf8AcSIADQAgCkHAAGogCkHACGogCkHAEGoQl4CAgAALIApBwABqIABBA3RqKQMAISYLAkAgE0UNACADQX9qIQAgFCEODAILAkAgJSAmQiCIpyAGcCIOrVENACAWIANFayEADAILIBUgA2ohAAwBCyAZIANqIQALIAAgBWogJkL/////D4MiJiAmfkIgiCAArX5CIIinQX9zaiABcCEAIAggBE8NASAAIA4gAWxqIgAgBE8NAiAKQcAYaiAQIAhBCnRqIBAgAEEKdGoQmICAgAACQCALDQAgAiAETw0EQQAhCANAIA8gCGoiACAAKQMAIApBwBhqIAhqKQMAhTcDACAIQQhqIghBgAhHDQAMBwsLIAIgBEkNBCACIARBhInAgAAQloCAgAAACyAIIARBxIjAgAAQloCAgAAACyAIIARB1IjAgAAQloCAgAAACyAAIARB5IjAgAAQloCAgAAACyACIARB9IjAgAAQloCAgAAACyAQIAJBCnRqIApBwBhqQYAI/AoAAAsgD0GACGohDyACIQggAkEBaiECIANBAWoiAyANSQ0ACwsgJUIBfCIlIBtSDQALCyAgQgRSDQALIB4gHFINAAsCQCABQX9qIgQgEk8NACAKQcAQaiAQIARBCnRqQYAI/AoAAAJAAkAgBkECSQ0AQQEhAwNAIAMgAWwgBGoiCCASTw0CIBAgCEEKdGohAkEAIQhBACEAA0AgCkHAEGogCGoiDyAPKQMAIAIgAEEDdGopAwCFNwMAIABBAWohACAIQQhqIghBgAhHDQALIANBAWoiAyAGRw0ACwtBACEIIApBwBhqQQBBgAj8CwADQCAKQcAYaiAIaiAKQcAQaiAIaikDADcAACAIQQhqIghBgAhHDQALIApBgAg2AsQIIAogCkHAGGo2AsAIAkAgCkHACGpBASAHQSAQlYCAgABB/wFxIgJB/wFHDQBBACEIA0AgCkHAEGogCGoiAEIANwMAIAogADYCwAggCkHACGohDyAAEIGAgIAAIAhBCGoiCEGACEcNAAtBACEIA0AgCkHAGGogCGoiAEEAOgAAIAogADYCwAggCkHACGohDyAAEIGAgIAAIAhBAWoiCEGACEcNAAsLIAJB/wFGIRQgECASQQp0aiEDDAQLIAggEkGkicCAABCWgICAAAALIAQgEkGUicCAABCWgICAAAALQcSHwIAAQTdBtIjAgAAQmYCAgAAACyASRQ0BIBAgEkEKdGohAwsgECECA0BBACEIA0AgAiAIaiIAQgA3AwAgCiAANgLAGCAKQcAYaiEPIAAQgYCAgAAgCEEIaiIIQYAIRw0ACyACQYAIaiICIANHDQALCyARQQp0IQACQAJAIBFFDQBBACEIA0AgECAIakEAOgAAIAAgCEEBaiIIRw0ACyAKIBE2AsQYIAogEDYCwBggCkHAGGohCCAQEIGAgIAADAELIApBADYCxBggCiAQNgLAGCAKQcAYaiEIC0EAIQ9BACEIAkAgFA0AQQAhCANAIAcgCGpBADoAACAIQQFqIghBIEcNAAsgCkEgNgLEGCAKIAc2AsAYIApBwBhqIQggBxCBgICAAEF9IQgLAkACQCARDQAgCkHAGGohAgwBCyAKQcAANgLAGCAKQcAQaiECIAAhDwsgAiAPNgIAIAooAsAYIgBFDQAgCigCwBAiCkUNACAQIAogABCNgICAAAsgCSSAgICAACAIC+kCAQV/AkAgAEEQIABBEEsbIgBBECABQQtqQXhxIAFBC0kbIgJqQQxqEKGAgIAAIgENAEEADwsgAUF4aiEDAkACQCAAQX9qIgQgAXENACADIQEMAQsgAUF8aiIFKAIAIgZBeHEgBCABakEAIABrcUF4aiIBQQAgACABIANrQRBLG2oiASADayIAayEEAkAgBkEDcUUNACABIAQgASgCBEEBcXJBAnI2AgQgASAEaiIEIAQoAgRBAXI2AgQgBSAAIAUoAgBBAXFyQQJyNgIAIAMgAGoiBCAEKAIEQQFyNgIEIAMgABCggICAAAwBCyADKAIAIQMgASAENgIEIAEgAyAAajYCAAsCQCABKAIEIgBBA3FFDQAgAEF4cSIDIAJBEGpNDQAgASACIABBAXFyQQJyNgIEIAEgAmoiACADIAJrIgJBA3I2AgQgASADaiIDIAMoAgRBAXI2AgQgACACEKCAgIAACyABQQhqC+stASp+IAAgASkAYCIDIAEpACgiBCAAKQMwIgUgACkDECIGfCABKQAgIgd8Igh8IAIgCIVC6/qG2r+19sEfhUIgiSIJQqvw0/Sv7ry3PHwiCiAFhUIoiSILfCIMfCABKQA4IgIgACkDOCINIAApAxgiDnwgASkAMCIIfCIPfCAPQvnC+JuRo7Pw2wCFQiCJIg9C8e30+KWn/aelf3wiECANhUIoiSIRfCISIA+FQjCJIhMgEHwiFCARhUIBiSIVfCIWIAEpAGgiD3wgFiABKQAYIhAgACkDKCIXIAApAwgiGHwgASkAECIRfCIZfCAZQp/Y+dnCkdqCm3+FQiCJIhlCu86qptjQ67O7f3wiGiAXhUIoiSIbfCIcIBmFQjCJIh2FQiCJIh4gASkACCIWIAApAyAiHyAAKQMAIiB8IAEpAAAiGXwiIXwgACkDQCAhhULRhZrv+s+Uh9EAhUIgiSIhQoiS853/zPmE6gB8IiIgH4VCKIkiI3wiJCAhhUIwiSIlICJ8IiJ8IiYgFYVCKIkiJ3wiKCABKQBIIhV8IAEpAFAiISAcfCAMIAmFQjCJIgwgCnwiHCALhUIBiSIKfCILIAEpAFgiCXwgCyAlhUIgiSILIBR8IhQgCoVCKIkiCnwiJSALhUIwiSIpIBR8IhQgCoVCAYkiKnwiKyABKQB4Igp8ICsgCiABKQBwIgsgEnwgIiAjhUIBiSISfCIifCAiIAyFQiCJIgwgHSAafCIafCIdIBKFQiiJIhJ8IiIgDIVCMIkiI4VCIIkiKyABKQBAIgwgJHwgGiAbhUIBiSIafCIbIBV8IBsgE4VCIIkiEyAcfCIbIBqFQiiJIhp8IhwgE4VCMIkiEyAbfCIbfCIkICqFQiiJIip8IiwgCXwgIiAPfCAoIB6FQjCJIh4gJnwiIiAnhUIBiSImfCInIAh8ICcgE4VCIIkiEyAUfCIUICaFQiiJIiZ8IicgE4VCMIkiEyAUfCIUICaFQgGJIiZ8IiggAnwgKCAlIAd8IBsgGoVCAYkiGnwiGyAMfCAbIB6FQiCJIhsgIyAdfCIdfCIeIBqFQiiJIhp8IiMgG4VCMIkiG4VCIIkiJSAcIAt8IB0gEoVCAYkiEnwiHCAhfCAcICmFQiCJIhwgInwiHSAShUIoiSISfCIiIByFQjCJIhwgHXwiHXwiKCAmhUIoiSImfCIpIAR8ICMgGXwgLCArhUIwiSIjICR8IiQgKoVCAYkiKnwiKyARfCArIByFQiCJIhwgFHwiFCAqhUIoiSIqfCIrIByFQjCJIhwgFHwiFCAqhUIBiSIqfCIsIBF8ICwgJyAEfCAdIBKFQgGJIhJ8Ih0gEHwgHSAjhUIgiSIdIBsgHnwiG3wiHiAShUIoiSISfCIjIB2FQjCJIh2FQiCJIicgIiAWfCAbIBqFQgGJIhp8IhsgA3wgGyAThUIgiSITICR8IhsgGoVCKIkiGnwiIiAThUIwiSITIBt8Iht8IiQgKoVCKIkiKnwiLCACfCAjIAp8ICkgJYVCMIkiIyAofCIlICaFQgGJIiZ8IiggD3wgKCAThUIgiSITIBR8IhQgJoVCKIkiJnwiKCAThUIwiSITIBR8IhQgJoVCAYkiJnwiKSAWfCApICsgA3wgGyAahUIBiSIafCIbIBl8IBsgI4VCIIkiGyAdIB58Ih18Ih4gGoVCKIkiGnwiIyAbhUIwiSIbhUIgiSIpICIgCXwgHSAShUIBiSISfCIdIAx8IB0gHIVCIIkiHCAlfCIdIBKFQiiJIhJ8IiIgHIVCMIkiHCAdfCIdfCIlICaFQiiJIiZ8IisgD3wgIyAQfCAsICeFQjCJIiMgJHwiJCAqhUIBiSInfCIqIAh8ICogHIVCIIkiHCAUfCIUICeFQiiJIid8IiogHIVCMIkiHCAUfCIUICeFQgGJIid8IiwgA3wgLCAoIBV8IB0gEoVCAYkiEnwiHSAHfCAdICOFQiCJIh0gGyAefCIbfCIeIBKFQiiJIhJ8IiMgHYVCMIkiHYVCIIkiKCAiICF8IBsgGoVCAYkiGnwiGyALfCAbIBOFQiCJIhMgJHwiGyAahUIoiSIafCIiIBOFQjCJIhMgG3wiG3wiJCAnhUIoiSInfCIsIAd8ICMgCXwgKyAphUIwiSIjICV8IiUgJoVCAYkiJnwiKSALfCApIBOFQiCJIhMgFHwiFCAmhUIoiSImfCIpIBOFQjCJIhMgFHwiFCAmhUIBiSImfCIrIBl8ICsgKiAQfCAbIBqFQgGJIhp8IhsgFnwgGyAjhUIgiSIbIB0gHnwiHXwiHiAahUIoiSIafCIjIBuFQjCJIhuFQiCJIiogIiACfCAdIBKFQgGJIhJ8Ih0gFXwgHSAchUIgiSIcICV8Ih0gEoVCKIkiEnwiIiAchUIwiSIcIB18Ih18IiUgJoVCKIkiJnwiKyARfCAjIAR8ICwgKIVCMIkiIyAkfCIkICeFQgGJIid8IiggIXwgKCAchUIgiSIcIBR8IhQgJ4VCKIkiJ3wiKCAchUIwiSIcIBR8IhQgJ4VCAYkiJ3wiLCAHfCAsICkgCnwgHSAShUIBiSISfCIdIAx8IB0gI4VCIIkiHSAbIB58Iht8Ih4gEoVCKIkiEnwiIyAdhUIwiSIdhUIgiSIpICIgEXwgGyAahUIBiSIafCIbIAh8IBsgE4VCIIkiEyAkfCIbIBqFQiiJIhp8IiIgE4VCMIkiEyAbfCIbfCIkICeFQiiJIid8IiwgCHwgIyAhfCArICqFQjCJIiMgJXwiJSAmhUIBiSImfCIqIAp8ICogE4VCIIkiEyAUfCIUICaFQiiJIiZ8IiogE4VCMIkiEyAUfCIUICaFQgGJIiZ8IisgDHwgKyAoIAR8IBsgGoVCAYkiGnwiGyACfCAbICOFQiCJIhsgHSAefCIdfCIeIBqFQiiJIhp8IiMgG4VCMIkiG4VCIIkiKCAiIBV8IB0gEoVCAYkiEnwiHSAZfCAdIByFQiCJIhwgJXwiHSAShUIoiSISfCIiIByFQjCJIhwgHXwiHXwiJSAmhUIoiSImfCIrIBl8ICMgCXwgLCAphUIwiSIjICR8IiQgJ4VCAYkiJ3wiKSADfCApIByFQiCJIhwgFHwiFCAnhUIoiSInfCIpIByFQjCJIhwgFHwiFCAnhUIBiSInfCIsIAl8ICwgKiAQfCAdIBKFQgGJIhJ8Ih0gD3wgHSAjhUIgiSIdIBsgHnwiG3wiHiAShUIoiSISfCIjIB2FQjCJIh2FQiCJIiogIiALfCAbIBqFQgGJIhp8IhsgFnwgGyAThUIgiSITICR8IhsgGoVCKIkiGnwiIiAThUIwiSITIBt8Iht8IiQgJ4VCKIkiJ3wiLCAKfCAjIAx8ICsgKIVCMIkiIyAlfCIlICaFQgGJIiZ8IiggEHwgKCAThUIgiSITIBR8IhQgJoVCKIkiJnwiKCAThUIwiSITIBR8IhQgJoVCAYkiJnwiKyALfCArICkgCHwgGyAahUIBiSIafCIbICF8IBsgI4VCIIkiGyAdIB58Ih18Ih4gGoVCKIkiGnwiIyAbhUIwiSIbhUIgiSIpICIgEXwgHSAShUIBiSISfCIdIAN8IB0gHIVCIIkiHCAlfCIdIBKFQiiJIhJ8IiIgHIVCMIkiHCAdfCIdfCIlICaFQiiJIiZ8IisgC3wgIyACfCAsICqFQjCJIiMgJHwiJCAnhUIBiSInfCIqIAR8ICogHIVCIIkiHCAUfCIUICeFQiiJIid8IiogHIVCMIkiHCAUfCIUICeFQgGJIid8IiwgD3wgLCAoIBZ8IB0gEoVCAYkiEnwiHSAVfCAdICOFQiCJIh0gGyAefCIbfCIeIBKFQiiJIhJ8IiMgHYVCMIkiHYVCIIkiKCAiIAd8IBsgGoVCAYkiGnwiGyAPfCAbIBOFQiCJIhMgJHwiGyAahUIoiSIafCIiIBOFQjCJIhMgG3wiG3wiJCAnhUIoiSInfCIsIBV8ICMgB3wgKyAphUIwiSIjICV8IiUgJoVCAYkiJnwiKSAhfCApIBOFQiCJIhMgFHwiFCAmhUIoiSImfCIpIBOFQjCJIhMgFHwiFCAmhUIBiSImfCIrIBF8ICsgKiAWfCAbIBqFQgGJIhp8IhsgCnwgGyAjhUIgiSIbIB0gHnwiHXwiHiAahUIoiSIafCIjIBuFQjCJIhuFQiCJIiogIiADfCAdIBKFQgGJIhJ8Ih0gBHwgHSAchUIgiSIcICV8Ih0gEoVCKIkiEnwiIiAchUIwiSIcIB18Ih18IiUgJoVCKIkiJnwiKyADfCAjIAh8ICwgKIVCMIkiIyAkfCIkICeFQgGJIid8IiggEHwgKCAchUIgiSIcIBR8IhQgJ4VCKIkiJ3wiKCAchUIwiSIcIBR8IhQgJ4VCAYkiJ3wiLCAWfCAsICkgDHwgHSAShUIBiSISfCIdIAl8IB0gI4VCIIkiHSAbIB58Iht8Ih4gEoVCKIkiEnwiIyAdhUIwiSIdhUIgiSIpICIgGXwgGyAahUIBiSIafCIbIAJ8IBsgE4VCIIkiEyAkfCIbIBqFQiiJIhp8IiIgE4VCMIkiEyAbfCIbfCIkICeFQiiJIid8IiwgDHwgIyAQfCArICqFQjCJIiMgJXwiJSAmhUIBiSImfCIqIBV8ICogE4VCIIkiEyAUfCIUICaFQiiJIiZ8IiogE4VCMIkiEyAUfCIUICaFQgGJIiZ8IisgCHwgKyAoIAJ8IBsgGoVCAYkiGnwiGyALfCAbICOFQiCJIhsgHSAefCIdfCIeIBqFQiiJIhp8IiMgG4VCMIkiG4VCIIkiKCAiIA98IB0gEoVCAYkiEnwiHSAJfCAdIByFQiCJIhwgJXwiHSAShUIoiSISfCIiIByFQjCJIhwgHXwiHXwiJSAmhUIoiSImfCIrIAl8ICMgCnwgLCAphUIwiSIjICR8IiQgJ4VCAYkiJ3wiKSAHfCApIByFQiCJIhwgFHwiFCAnhUIoiSInfCIpIByFQjCJIhwgFHwiFCAnhUIBiSInfCIsIBB8ICwgKiARfCAdIBKFQgGJIhJ8Ih0gIXwgHSAjhUIgiSIdIBsgHnwiG3wiHiAShUIoiSISfCIjIB2FQjCJIh2FQiCJIiogIiAEfCAbIBqFQgGJIhp8IhsgGXwgGyAThUIgiSITICR8IhsgGoVCKIkiGnwiIiAThUIwiSITIBt8Iht8IiQgJ4VCKIkiJ3wiLCAWfCAjIBl8ICsgKIVCMIkiIyAlfCIlICaFQgGJIiZ8IiggDHwgKCAThUIgiSITIBR8IhQgJoVCKIkiJnwiKCAThUIwiSITIBR8IhQgJoVCAYkiJnwiKyAHfCArICkgC3wgGyAahUIBiSIafCIbIBV8IBsgI4VCIIkiGyAdIB58Ih18Ih4gGoVCKIkiGnwiIyAbhUIwiSIbhUIgiSIpICIgCHwgHSAShUIBiSISfCIdIAp8IB0gHIVCIIkiHCAlfCIdIBKFQiiJIhJ8IiIgHIVCMIkiHCAdfCIdfCIlICaFQiiJIiZ8IisgAnwgIyAPfCAsICqFQjCJIiMgJHwiJCAnhUIBiSInfCIqIAJ8ICogHIVCIIkiHCAUfCIUICeFQiiJIid8IiogHIVCMIkiHCAUfCIUICeFQgGJIid8IiwgCHwgLCAoICF8IB0gEoVCAYkiEnwiHSAEfCAdICOFQiCJIh0gGyAefCIbfCIeIBKFQiiJIhJ8IiMgHYVCMIkiHYVCIIkiKCAiIAN8IBsgGoVCAYkiGnwiGyARfCAbIBOFQiCJIhMgJHwiGyAahUIoiSIafCIiIBOFQjCJIhMgG3wiG3wiJCAnhUIoiSInfCIsIBB8ICMgFnwgKyAphUIwiSIjICV8IiUgJoVCAYkiJnwiKSAEfCApIBOFQiCJIhMgFHwiFCAmhUIoiSImfCIpIBOFQjCJIhMgFHwiFCAmhUIBiSImfCIrIAN8ICsgKiAMfCAbIBqFQgGJIhp8IhsgB3wgGyAjhUIgiSIbIB0gHnwiHXwiHiAahUIoiSIafCIjIBuFQjCJIhuFQiCJIiogIiAhfCAdIBKFQgGJIhJ8Ih0gEXwgHSAchUIgiSIcICV8Ih0gEoVCKIkiEnwiIiAchUIwiSIcIB18Ih18IiUgJoVCKIkiJnwiKyAHfCAjIBV8ICwgKIVCMIkiIyAkfCIkICeFQgGJIid8IiggC3wgKCAchUIgiSIcIBR8IhQgJ4VCKIkiJ3wiKCAchUIwiSIcIBR8IhQgJ4VCAYkiJ3wiLCAEfCAsICkgD3wgHSAShUIBiSISfCIdIBl8IB0gI4VCIIkiHSAbIB58Iht8Ih4gEoVCKIkiEnwiIyAdhUIwiSIdhUIgiSIpICIgCnwgGyAahUIBiSIafCIbIAl8IBsgE4VCIIkiEyAkfCIbIBqFQiiJIhp8IiIgE4VCMIkiEyAbfCIbfCIkICeFQiiJIid8IiwgA3wgIyAIfCArICqFQjCJIiMgJXwiJSAmhUIBiSImfCIqIAJ8ICogE4VCIIkiEyAUfCIUICaFQiiJIiZ8IiogE4VCMIkiEyAUfCIUICaFQgGJIiZ8IisgD3wgKyAoIBF8IBsgGoVCAYkiGnwiGyAQfCAbICOFQiCJIhsgHSAefCIdfCIeIBqFQiiJIhp8IiMgG4VCMIkiG4VCIIkiKCAiIBl8IB0gEoVCAYkiEnwiHSAWfCAdIByFQiCJIhwgJXwiHSAShUIoiSISfCIiIByFQjCJIhwgHXwiHXwiJSAmhUIoiSImfCIrIBV8ICMgIXwgLCAphUIwiSIjICR8IiQgJ4VCAYkiJ3wiKSAJfCApIByFQiCJIhwgFHwiFCAnhUIoiSInfCIpIByFQjCJIhwgFHwiFCAnhUIBiSInfCIsIAp8ICwgKiALfCAdIBKFQgGJIhJ8Ih0gCnwgHSAjhUIgiSIKIBsgHnwiG3wiHSAShUIoiSISfCIeIAqFQjCJIgqFQiCJIiMgIiAMfCAbIBqFQgGJIhp8IhsgFXwgGyAThUIgiSIVICR8IhMgGoVCKIkiGnwiGyAVhUIwiSIVIBN8IhN8IiIgJ4VCKIkiJHwiJyAJfCAeIA98ICsgKIVCMIkiDyAlfCIJICaFQgGJIh58IiUgCHwgJSAVhUIgiSIIIBR8IhUgHoVCKIkiFHwiHiAIhUIwiSIIIBV8IhUgFIVCAYkiFHwiJSACfCAlICkgB3wgEyAahUIBiSIHfCICIAx8IAIgD4VCIIkiAiAKIB18Ig98IgogB4VCKIkiB3wiDCAChUIwiSIChUIgiSITIBsgC3wgDyAShUIBiSIPfCILICF8IAsgHIVCIIkiISAJfCIJIA+FQiiJIg98IgsgIYVCMIkiISAJfCIJfCISIBSFQiiJIhR8IhogBoUgCyAWfCACIAp8IgIgB4VCAYkiB3wiFiADfCAWIAiFQiCJIgMgJyAjhUIwiSIIICJ8IhZ8IgogB4VCKIkiB3wiCyADhUIwiSIDIAp8IgqFNwMQIAAgCyAghSAaIBOFQjCJIgsgEnwiBoU3AwAgACAOIBAgHiAEfCAJIA+FQgGJIgR8Ig98IA8gCIVCIIkiCCACfCICIASFQiiJIgR8Ig+FIBEgDCAZfCAWICSFQgGJIhB8IhZ8IBYgIYVCIIkiESAVfCIWIBCFQiiJIhB8IhkgEYVCMIkiESAWfCIWhTcDGCAAIBkgGIUgDyAIhUIwiSIIIAJ8IgKFNwMIIAAgDSAGIBSFQgGJhSADhTcDOCAAIBcgCiAHhUIBiYUgC4U3AyggACAFIBYgEIVCAYmFIAiFNwMwIAAgHyACIASFQgGJhSARhTcDIAv/EwEIfyOAgICAAEGQCWsiBCSAgICAACAEIAM2AgQCQAJAAkACQCADQcEASQ0AIARC+cL4m5Gjs/DbADcDkAIgBELr+obav7X2wR83A4gCIARCn9j52cKR2oKbfzcDgAIgBELRhZrv+s+Uh9EANwP4ASAEQvHt9Pilp/2npX83A/ABIARCq/DT9K/uvLc8NwPoASAEQrvOqqbY0Ouzu383A+ABIARCyJL3lf/M+YTqADcD2AEgBEGYAmpBAEGIAfwLAEEEIQUgBEEEOgCgAyAEIAM2AqACIAAgAUEDdGohBiAEQaACaiEHA0AgACgCACEBAkACQCAAKAIEIghBgAEgBUH/AXEiCWsiBU0NAAJAIAlFDQACQCAFRQ0AIAcgCWogASAF/AoAAAsgBCAEKQOYAkKAAXw3A5gCIARB2AFqIAdCABCUgICAACAIIAVrIQggASAFaiEBCyAIQf8AcSIJQYABIAkbIQUgCEEHdiAJRWsiCkEHdCILIQkgASEIAkAgCkUNAANAIAQgBCkDmAJCgAF8NwOYAiAEQdgBaiAIQgAQlICAgAAgCEGAAWohCCAJQYB/aiIJDQALCyAFRQ0BIAcgASALaiAF/AoAAAwBCwJAIAhFDQAgByAJaiABIAj8CgAACyAIIAlqIQULIAQgBToAoAMgAEEIaiIAIAZHDQALIAQgBCkDmAIgBC0AoAMiCK18NwOYAiAEQdgBakHIAGohCQJAIAhBgAFGDQBBgAEgCGsiAEUNACAJIAhqQQAgAPwLAAsgBEEAOgCgAyAEQdgBaiAJQn8QlICAgAAgBCAEKQPwATcD0AYgBCAEKQPoATcDyAYgBCAEKQPgATcDwAYgBCAEKQPYATcDuAYgBCAEKQP4ATcD2AYgBCAEKQOAAjcD4AYgBCAEKQOIAjcD6AYgBCAEKQOQAjcD8AYgBEG4BWogBEG4BmpBwAD8CgAAIARB+ARqIARBuAVqQcAA/AoAACACIAQpAJAFNwAYIAIgBCkAiAU3ABAgAiAEKQCABTcACCACIAQpAPgENwAAIANBYGohBSADQeAPcSEHIARBwAdqIQogBEG4BWpBwABqIQsgBEHICGpBIGohCCAEQbgGakEgaiEJIARBuAZqQcgAaiEGQSAhAQJAA0AgBUHBAEkNASAEQbgFaiAEQfgEakHAAPwKAAAgC0EAQcAA/AsAIARC+cL4m5Gjs/DbADcD8AYgBELr+obav7X2wR83A+gGIARCn9j52cKR2oKbfzcD4AYgBELRhZrv+s+Uh9EANwPYBiAEQvHt9Pilp/2npX83A9AGIARCq/DT9K/uvLc8NwPIBiAEQrvOqqbY0Ouzu383A8AGIARCyJL3lf/M+YTqADcDuAYgBiAEQbgFakGAAfwKAAAgBELAADcD+AYgCkEAQcAA/AsAIARBADoAgAggBEG4BmogBkJ/EJSAgIAAIAggCSkDADcDACAIIAkpAwg3AwggCCAJKQMQNwMQIAggCSkDGDcDGCAEIAQpA9AGNwPgCCAEIAQpA8gGNwPYCCAEIAQpA8AGNwPQCCAEIAQpA7gGNwPICCAEQYgIaiAEQcgIakHAAPwKAAAgBEHICGogBEGICGpBwAD8CgAAIARB+ARqIARByAhqQcAA/AoAACACIAFqIgAgBCkAkAU3ABggACAEKQCIBTcAECAAIAQpAIAFNwAIIAAgBCkA+AQ3AAAgBUFgaiEFIAcgAUEgaiIBRw0AC0EJIQgMBAsgBEH0A2oiBkEAQYEB/AsAIARCADcD6AMgBEL5wvibkaOz8NsANwPgAyAEQuv6htq/tfbBHzcD2AMgBEKf2PnZwpHagpt/NwPQAyAEQtGFmu/6z5SH0QA3A8gDIARC8e30+KWn/aelfzcDwAMgBEKr8NP0r+68tzw3A7gDIARCu86qptjQ67O7fzcDsAMgBCAFNgLwAyAEIAVBgICECHKtQoiS853/zPmE6gCFNwOoAwJAAkAgBC0A9AQiCEHAAEsNACAGIAhqIARB+ARqQcAA/AoAACAIQcAAaiEADAELAkBBgAEgCGsiCUUNACAGIAhqIARB+ARqIAn8CgAACyAEIAQpA+gDQoABfDcD6AMgBEGoA2ogBkIAEJSAgIAAIAhBQGoiCEEHdiAIQf8AcSIIRWsiC0EHdCEHIARB+ARqIAlqIQogCEGAASAIGyEAAkAgC0UNACAHIQkgCiEIA0AgBCAEKQPoA0KAAXw3A+gDIARBqANqIAhCABCUgICAACAIQYABaiEIIAlBgH9qIgkNAAsLIABFDQAgBiAKIAdqIAD8CgAACyAEIAA6APQEIAEgA0sNASAEQagDaiACIAFqIAUQpYCAgAANAkH/ASEIDAMLIARB1ABqIgZBAEGBAfwLACAEQgA3A0ggBEL5wvibkaOz8NsANwNAIARC6/qG2r+19sEfNwM4IARCn9j52cKR2oKbfzcDMCAEQtGFmu/6z5SH0QA3AyggBELx7fT4paf9p6V/NwMgIARCq/DT9K/uvLc8NwMYIARCu86qptjQ67O7fzcDECAEIAM2AlAgBCADQYCAhAhyrUKIkvOd/8z5hOoAhTcDCAJAAkAgBC0A1AEiCEH8AEsNACAGIAhqIAM2AAAgCEEEaiEFDAELAkBBgAEgCGsiCUUNACAGIAhqIARBBGogCfwKAAALIAQgBCkDSEKAAXw3A0ggBEEIaiAGQgAQlICAgAAgCEGEf2oiCEEHdiAIQf8AcSIIRWsiC0EHdCEHIARBBGogCWohCiAIQYABIAgbIQUCQCALRQ0AIAchCSAKIQgDQCAEIAQpA0hCgAF8NwNIIARBCGogCEIAEJSAgIAAIAhBgAFqIQggCUGAf2oiCQ0ACwsgBUUNACAGIAogB2ogBfwKAAALIAQgBToA1AEgACABQQN0aiEHA0AgACgCACEBAkACQCAAKAIEIghBgAEgBUH/AXEiCWsiBU0NAAJAIAlFDQACQCAFRQ0AIAYgCWogASAF/AoAAAsgBCAEKQNIQoABfDcDSCAEQQhqIAZCABCUgICAACAIIAVrIQggASAFaiEBCyAIQf8AcSIJQYABIAkbIQUgCEEHdiAJRWsiCkEHdCILIQkgASEIAkAgCkUNAANAIAQgBCkDSEKAAXw3A0ggBEEIaiAIQgAQlICAgAAgCEGAAWohCCAJQYB/aiIJDQALCyAFRQ0BIAYgASALaiAF/AoAAAwBCwJAIAhFDQAgBiAJaiABIAj8CgAACyAIIAlqIQULIAQgBToA1AEgAEEIaiIAIAdHDQALQQlBfyAEQQhqIAIgAxClgICAABshCAwCCyABIAMgA0G0icCAABCbgICAAAALQcSJwIAAQR0gBEGPCWpB8IfAgABB5InAgAAQhoCAgAAACyAEQZAJaiSAgICAACAIC18CAX8BfiOAgICAAEEgayIDJICAgIAAIAMgATYCDCADIAA2AgggA0GDgICAAK1CIIYiBCADQQhqrYQ3AxggAyAEIANBDGqthDcDEEG4gMCAACADQRBqIAIQmYCAgAAAC14BAn8jgICAgAAiA0GACGtBQHEiBCSAgICAACABIAEpAzBCAXw3AzAgBCACIAEQmICAgAAgACAEQYAI/AoAACAEIAIgABCYgICAACAAIARBgAj8CgAAIAMkgICAgAALrRgcA38BfgF/AX4BfwF+AX8BfgF/AX4BfwF+AX8BfgF/AX4BfwJ+AX8BfgF/A34BfwF+AX8BfgF/A34jgICAgAAiAyEEIANBgBBrQUBxIgMkgICAgAAgAyABQYAI/AoAAEEAIQEDQCADIAFqIgUgBSkDACACIAFqKQMAhTcDACABQQhqIgFBgAhHDQALIANBgAhqIANBgAj8CgAAQQAhBQNAIANBgAhqIAVqIgEgAUE4aiICKQMAIgYgAUEYaiIHKQMAIgh8IAhCAYZC/v///x+DIAZC/////w+DfnwiCCABQfgAaiIJKQMAhUIgiSIKIAFB2ABqIgspAwAiDHwgDEIBhkL+////H4MgCkL/////D4N+fCIMIAaFQiiJIgYgCHwgCEIBhkL+////H4MgBkL/////D4N+fCIIIAqFQjCJIgogAUEoaiINKQMAIg4gAUEIaiIPKQMAIhB8IBBCAYZC/v///x+DIA5C/////w+DfnwiECABQegAaiIRKQMAhUIgiSISIAFByABqIhMpAwAiFHwgFEIBhkL+////H4MgEkL/////D4N+fCIUIA6FQiiJIg4gEHwgEEIBhkL+////H4MgDkL/////D4N+fCIQIBKFQjCJIhIgFHwgFEIBhkL+////H4MgEkL/////D4N+fCIUIA6FQgGJIg4gAUEgaiIVKQMAIhYgASkDACIXfCAXQgGGQv7///8fgyAWQv////8Pg358IhcgAUHgAGoiGCkDAIVCIIkiGSABQcAAaiIaKQMAIht8IBtCAYZC/v///x+DIBlC/////w+DfnwiGyAWhUIoiSIWIBd8IBdCAYZC/v///x+DIBZC/////w+DfnwiF3wgF0IBhkL+////H4MgDkL/////D4N+fCIchUIgiSIdIAFBMGoiHikDACIfIAFBEGoiICkDACIhfCAhQgGGQv7///8fgyAfQv////8Pg358IiEgAUHwAGoiIikDAIVCIIkiIyABQdAAaiIBKQMAIiR8ICRCAYZC/v///x+DICNC/////w+DfnwiJCAfhUIoiSIfICF8ICFCAYZC/v///x+DIB9C/////w+DfnwiISAjhUIwiSIjICR8ICRCAYZC/v///x+DICNC/////w+DfnwiJHwgJEIBhkL+////H4MgHUL/////D4N+fCIlIA6FQiiJIg4gHHwgHEIBhkL+////H4MgDkL/////D4N+fCIcNwMAIAkgHCAdhUIwiSIcNwMAIAEgHCAlfCAlQgGGQv7///8fgyAcQv////8Pg358Ihw3AwAgDSAcIA6FQgGJNwMAIBggCiAMfCAMQgGGQv7///8fgyAKQv////8Pg358IgogJCAfhUIBiSIMIBB8IBBCAYZC/v///x+DIAxC/////w+DfnwiDiAXIBmFQjCJIhCFQiCJIhd8IBdCAYZC/v///x+DIApC/////w+DfnwiGSAMhUIoiSIMIA58IA5CAYZC/v///x+DIAxC/////w+DfnwiHCAXhUIwiSIONwMAIA8gHDcDACALIA4gGXwgGUIBhkL+////H4MgDkL/////D4N+fCIONwMAIB4gDiAMhUIBiTcDACARIAogBoVCAYkiBiAhfCAhQgGGQv7///8fgyAGQv////8Pg358IgogEoVCIIkiDCAQIBt8IBtCAYZC/v///x+DIBBC/////w+DfnwiDnwgDkIBhkL+////H4MgDEL/////D4N+fCIQIAaFQiiJIgYgCnwgCkIBhkL+////H4MgBkL/////D4N+fCISIAyFQjCJIgo3AwAgICASNwMAIBogCiAQfCAQQgGGQv7///8fgyAKQv////8Pg358Igo3AwAgAiAKIAaFQgGJNwMAICIgCCAOIBaFQgGJIgZ8IAZCAYZC/v///x+DIAhC/////w+DfnwiCCAjhUIgiSIKIBR8IBRCAYZC/v///x+DIApC/////w+DfnwiDCAGhUIoiSIGIAh8IAhCAYZC/v///x+DIAZC/////w+DfnwiDiAKhUIwiSIINwMAIAcgDjcDACATIAggDHwgDEIBhkL+////H4MgCEL/////D4N+fCIINwMAIBUgCCAGhUIBiTcDACAFQYABaiIFQYAIRw0AC0GAfyEFA0AgA0GACGogBWoiAUGAAWoiAiABQYgEaiIHKQMAIgYgAUGIAmoiCSkDACIIfCAIQgGGQv7///8fgyAGQv////8Pg358IgggAUGICGoiCykDAIVCIIkiCiABQYgGaiINKQMAIgx8IAxCAYZC/v///x+DIApC/////w+DfnwiDCAGhUIoiSIGIAh8IAhCAYZC/v///x+DIAZC/////w+DfnwiCCAKhUIwiSIKIAFBiANqIg8pAwAiDiABQYgBaiIRKQMAIhB8IBBCAYZC/v///x+DIA5C/////w+DfnwiECABQYgHaiITKQMAhUIgiSISIAFBiAVqIhUpAwAiFHwgFEIBhkL+////H4MgEkL/////D4N+fCIUIA6FQiiJIg4gEHwgEEIBhkL+////H4MgDkL/////D4N+fCIQIBKFQjCJIhIgFHwgFEIBhkL+////H4MgEkL/////D4N+fCIUIA6FQgGJIg4gAUGAA2oiGCkDACIWIAIpAwAiF3wgF0IBhkL+////H4MgFkL/////D4N+fCIXIAFBgAdqIgIpAwCFQiCJIhkgAUGABWoiGikDACIbfCAbQgGGQv7///8fgyAZQv////8Pg358IhsgFoVCKIkiFiAXfCAXQgGGQv7///8fgyAWQv////8Pg358Ihd8IBdCAYZC/v///x+DIA5C/////w+DfnwiHIVCIIkiHSABQYAEaiIeKQMAIh8gAUGAAmoiICkDACIhfCAhQgGGQv7///8fgyAfQv////8Pg358IiEgAUGACGoiIikDAIVCIIkiIyABQYAGaiIBKQMAIiR8ICRCAYZC/v///x+DICNC/////w+DfnwiJCAfhUIoiSIfICF8ICFCAYZC/v///x+DIB9C/////w+DfnwiISAjhUIwiSIjICR8ICRCAYZC/v///x+DICNC/////w+DfnwiJHwgJEIBhkL+////H4MgHUL/////D4N+fCIlIA6FQiiJIg4gHHwgHEIBhkL+////H4MgDkL/////D4N+fCIcNwMAIAsgHCAdhUIwiSIcNwMAIAEgHCAlfCAlQgGGQv7///8fgyAcQv////8Pg358Ihw3AwAgDyAcIA6FQgGJNwMAIAIgCiAMfCAMQgGGQv7///8fgyAKQv////8Pg358IgogJCAfhUIBiSIMIBB8IBBCAYZC/v///x+DIAxC/////w+DfnwiDiAXIBmFQjCJIhCFQiCJIhd8IBdCAYZC/v///x+DIApC/////w+DfnwiGSAMhUIoiSIMIA58IA5CAYZC/v///x+DIAxC/////w+DfnwiHCAXhUIwiSIONwMAIBEgHDcDACANIA4gGXwgGUIBhkL+////H4MgDkL/////D4N+fCIONwMAIB4gDiAMhUIBiTcDACATIAogBoVCAYkiBiAhfCAhQgGGQv7///8fgyAGQv////8Pg358IgogEoVCIIkiDCAQIBt8IBtCAYZC/v///x+DIBBC/////w+DfnwiDnwgDkIBhkL+////H4MgDEL/////D4N+fCIQIAaFQiiJIgYgCnwgCkIBhkL+////H4MgBkL/////D4N+fCISIAyFQjCJIgo3AwAgICASNwMAIBogCiAQfCAQQgGGQv7///8fgyAKQv////8Pg358Igo3AwAgByAKIAaFQgGJNwMAICIgCCAOIBaFQgGJIgZ8IAZCAYZC/v///x+DIAhC/////w+Dfnwi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QQBBACgCsJLAgAAgA2oiAzYCsJLAgAAgACADQQFyNgIEDAELQQAgADYCtJLAgABBAEEAKAKsksCAACADaiIDNgKsksCAACAAIANBAXI2AgQgACADaiADNgIACyABQQhqDwtBACEAQQAoArCSwIAAIgMgAk0NAEEAIAMgAmsiAzYCsJLAgABBAEEAKAK4ksCAACIAIAJqIgQ2AriSwIAAIAQgA0EBcjYCBCAAIAJBA3I2AgQgAEEIag8LIAALDQAgASAAEKSAgIAAAAsXAEGgh8CAAEEjQbSHwIAAEJmAgIAAAAsNACABIAAQy4CAgAAAC/oBAQV/I4CAgIAAQYABayIDJICAgIAAAkAgAkHAAEsgAiAAKAJIR3IiBA0AIAAgACkDQCAALQDMASIFrXw3A0AgAEHMAGohBgJAIAVBgAFGDQBBgAEgBWsiB0UNACAGIAVqQQAgB/wLAAsgAEEAOgDMASAAIAZCfxCUgICAACADIAApAxg3A1ggAyAAKQMQNwNQIAMgACkDCDcDSCADIAApAwA3A0AgAyAAKQMgNwNgIAMgACkDKDcDaCADIAApAzA3A3AgAyAAKQM4NwN4IAMgA0HAAGpBwAD8CgAAIAJFDQAgASADIAL8CgAACyADQYABaiSAgICAACAECyIAIAEoAgBB9InAgABBESABKAIEKAIMEYCAgIAAgICAgAALEAAgAUGFisCAABCogICAAAuoAgEFfyOAgICAAEEgayICJICAgIAAQQEhAwJAIAAoAgAiBCABQREgACgCBCIFKAIMIgYRgICAgACAgICAAA0AAkACQCAALQAKQYABcQ0AQQEhAyAEQZqKwIAAQQEgBhGAgICAAICAgIAADQIgAEGWisCAAEECEKqAgIAARQ0BDAILIARBm4rAgABBAiAGEYCAgIAAgICAgAANAUEBIQMgAkEBOgAPIAIgBTYCBCACIAQ2AgAgAkGgisCAADYCFCACIAApAgg3AhggAiACQQ9qNgIIIAIgAjYCECACQRBqQZaKwIAAQQIQqoCAgAANASACQZiKwIAAQQIQroCAgAANAQsgBEGdisCAAEEBIAYRgICAgACAgICAACEDCyACQSBqJICAgIAAIAMLFAAgASAAKAIAIAAoAgQQqoCAgAALowgBC38CQAJAIAAoAggiA0GAgIDAAXFFDQACQAJAAkACQAJA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OwAACwJAAkAgBEUNACAARQ0BCyACQQZqIANBf2oiA2ogAEEBdC0AuYrAgAA6AAALQStBfyABKAIIIgBBgICAAXEiBRshBCAAQYCAgARxQRd2IQkgAkEGaiADaiEKAkACQCAFQRV2QQogA2siC2oiByABLwEMIghPDQACQAJAAkAgAEGAgIAIcQ0AIAggB2shDEEAIQNBACEIAkACQAJAIABBHXZBA3EOBAIAAQACCyAMIQgMAQsgDEH+/wNxQQF2IQgLIABB////AHEhByABKAIEIQYgASgCACEFA0AgA0H//wNxIAhB//8DcU8NAkEBIQAgA0EBaiEDIAUgByAGKAIQEYGAgIAAgICAgABFDQAMBQsLIAEgASkCCCINp0GAgID/eXFBsICAgAJyNgIIQQEhACABKAIAIgUgASgCBCIGIAQgCRCygICAAA0DQQAhAyAIIAdrQf//A3EhBwNAIANB//8DcSAHTw0CQQEhACADQQFqIQMgBUEwIAYoAhARgYCAgACAgICAAEUNAAwECwtBASEAIAUgBiAEIAkQsoCAgAANAiAFIAogCyAGKAIMEYCAgIAAgICAgAANAiAMIAhrQf//A3EhCEEAIQMDQAJAIANB//8DcSAISQ0AQQAhAAwEC0EBIQAgA0EBaiEDIAUgByAGKAIQEYGAgIAAgICAgABFDQAMAwsLQQEhACAFIAogCyAGKAIMEYCAgIAAgICAgAANASABIA03AghBACEADAELQQEhACABKAIAIgMgASgCBCIFIAQgCRCygICAAA0AIAMgCiALIAUoAgwRgICAgACAgICAACEACyACQRBqJICAgIAAIAALRgACQCACQX9GDQAgACACIAEoAhARgYCAgACAgICAAEUNAEEBDwsCQCADDQBBAA8LIAAgA0EAIAEoAgwRgICAgACAgICAAAtSAQF/I4CAgIAAQRBrIgAkgICAgAAgAEEcNgIEIABB9I3AgAA2AgAgAEGCgICAAK1CIIYgAK2ENwMIQeOBwIAAIABBCGpBkI7AgAAQmYCAgAAAC+oBAQJ/I4CAgIAAQRBrIgQkgICAgABBAEEAKAKIj8CAACIFQQFqNgKIj8CAAAJAAkACQCAFQQBIDQACQAJAQQAtAICPwIAADQBBAEEBOgCAj8CAAEEAQQAoAvyOwIAAQQFqNgL8jsCAAEEAKAKEj8CAACIFQX9MDQIgBUEBaiIBIAVODQEQs4CAgAAACyAEQQhqIAAgASgCGBGCgICAAICAgIAAAAtBACABQX9qNgKEj8CAACABQQBMDQFBAEEAOgCAj8CAACACDQILAAtBwI7AgABBzQBB6I7AgAAQmYCAgAAACxC1gICAAAALAwAACwkAIABBADYCAAseACAAQQApAtyMwIAANwIIIABBACkC1IzAgAA3AgALDgBBAEEBOgDQksCAAAALCwAgABC6gICAAAALjAEBA38jgICAgABBEGsiASSAgICAAAJAIAAoAgAiAigCBCIDQQFxRQ0AIAIoAgAhAiABIANBAXY2AgQgASACNgIAIAFBnIzAgAAgACgCCCIALQAIIAAtAAkQtICAgAAACyABQX82AgAgASAANgIMIAFBuIzAgAAgACgCCCIALQAIIAAtAAkQtICAgAAACyIBAX8CQCAAKAIAIgFBAUgNACAAKAIEIAFBARCNgICAAAsLVAACQCAAKAIAQX9GDQAgASgCACAAKAIEIAAoAgggASgCBCgCDBGAgICAAICAgIAADwsgASgCACABKAIEIAAoAgwoAgAiACgCACAAKAIEEK2AgIAAC/0BAgJ/AX4jgICAgABBIGsiAiSAgICAAAJAIAEoAgBBf0cNACABKAIMIQMgAkEANgIYIAJCgICAgBA3AhAgAkEQakGEjMCAACADKAIAIgMoAgAgAygCBBCtgICAABogAiACKAIYIgM2AgggAiACKQIQIgQ3AwAgASADNgIIIAEgBDcCAAsgASgCCCEDIAFBADYCCCABKQIAIQQgAUKAgICAEDcCACACIAM2AhggAiAENwMQAkBBDBChgICAACIBDQBBBEEMEKKAgIAAAAsgASACKAIYNgIIIAEgAikDEDcCACAAQbCOwIAANgIEIAAgATYCACACQSBqJICAgIAAC6EBAgJ/AX4jgICAgABBIGsiAiSAgICAAAJAIAEoAgBBf0cNACABKAIMIQMgAkEANgIcIAJCgICAgBA3AhQgAkEUakGEjMCAACADKAIAIgMoAgAgAygCBBCtgICAABogAiACKAIcIgM2AhAgAiACKQIUIgQ3AwggASADNgIIIAEgBDcCAAsgAEGwjsCAADYCBCAAIAE2AgAgAkEgaiSAgICAAAufAQEBfyOAgICAAEEQayIDJICAgIAAAkAg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</script>
+  <script>
+    (() => {
+      "use strict";
+
+      const MAGIC = Uint8Array.of(80, 87, 67, 82, 89, 80, 84, 0); // PWCRYPT\0
+      const VERSION = 1;
+      const PREFIX_SIZE = 96;
+      const HEADER_SIZE = 112;
+      const SUITE = 1;
+      const MEMORY_KIB = 65_536;
+      const ITERATIONS = 3;
+      const PARALLELISM = 1;
+      const CHUNK_SIZE = 4 * 1024 * 1024;
+      const TAG_SIZE = 16;
+      const MAX_PASSWORD_BYTES = 1024;
+      const MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+      const encoder = new TextEncoder();
+      const HEADER_DOMAIN = encoder.encode("PWCRYPT-HDR-v1");
+      const CHUNK_DOMAIN = encoder.encode("PWCRYPT-CHUNK-v1");
+
+      const workerSource = `
+        "use strict";
+        let wasm = null;
+        let keyPointer = 0;
+        const KEY_SIZE = 32;
+        const TAG_SIZE = 16;
+
+        function makeError(code, message) {
+          const error = new Error(message);
+          error.code = code;
+          return error;
+        }
+
+        function copyIntoWasm(buffer, extra) {
+          const input = new Uint8Array(buffer);
+          const capacity = Math.max(1, input.byteLength + (extra || 0));
+          let pointer = 0;
+          try {
+            pointer = wasm.allocate(capacity);
+            new Uint8Array(wasm.memory.buffer, pointer, input.byteLength).set(input);
+            return { pointer, capacity, length: input.byteLength };
+          } finally {
+            input.fill(0);
+          }
+        }
+
+        function wipeAndFree(allocation) {
+          if (!allocation || !wasm) return;
+          wasm.wipe(allocation.pointer, allocation.capacity);
+          wasm.deallocate(allocation.pointer, allocation.capacity);
+        }
+
+        function clearKey() {
+          if (!wasm || !keyPointer) return;
+          wasm.wipe(keyPointer, KEY_SIZE);
+          wasm.deallocate(keyPointer, KEY_SIZE);
+          keyPointer = 0;
+        }
+
+        async function dispatch(message) {
+          if (message.type === "init") {
+            const instance = await WebAssembly.instantiate(message.module, {});
+            wasm = instance.exports;
+            if (!wasm.memory || !wasm.allocate || !wasm.derive_key || wasm.abi_version() !== 1) {
+              throw makeError("WASM", "The embedded cryptography module has an incompatible ABI.");
+            }
+            return null;
+          }
+
+          if (!wasm) throw makeError("WASM", "The cryptography module is not ready.");
+
+          if (message.type === "derive") {
+            clearKey();
+            const password = copyIntoWasm(message.password, 0);
+            const salt = copyIntoWasm(message.salt, 0);
+            keyPointer = wasm.allocate(KEY_SIZE);
+            try {
+              const result = wasm.derive_key(
+                password.pointer,
+                password.length,
+                salt.pointer,
+                salt.length,
+                message.memoryKib,
+                message.iterations,
+                message.parallelism,
+                keyPointer
+              );
+              if (result !== 0) {
+                clearKey();
+                throw makeError("KDF", "The Rust key derivation step failed.");
+              }
+            } finally {
+              wipeAndFree(password);
+              wipeAndFree(salt);
+            }
+            return null;
+          }
+
+          if (message.type === "crypt") {
+            if (!keyPointer) throw makeError("KEY", "No derived key is available.");
+            const nonce = copyIntoWasm(message.nonce, 0);
+            const aad = copyIntoWasm(message.aad, 0);
+            const extra = message.mode === "encrypt" ? TAG_SIZE : 0;
+            const data = copyIntoWasm(message.data, extra);
+            try {
+              const result = message.mode === "encrypt"
+                ? wasm.encrypt_in_place(keyPointer, nonce.pointer, aad.pointer, aad.length, data.pointer, data.length)
+                : wasm.decrypt_in_place(keyPointer, nonce.pointer, aad.pointer, aad.length, data.pointer, data.length);
+              if (result !== 0) {
+                throw makeError(message.mode === "decrypt" ? "AUTH" : "CRYPTO", "Authenticated encryption failed.");
+              }
+              const outputLength = message.mode === "encrypt" ? data.length + TAG_SIZE : data.length - TAG_SIZE;
+              return new Uint8Array(wasm.memory.buffer, data.pointer, outputLength).slice().buffer;
+            } finally {
+              wipeAndFree(nonce);
+              wipeAndFree(aad);
+              wipeAndFree(data);
+            }
+          }
+
+          if (message.type === "dispose") {
+            clearKey();
+            return null;
+          }
+
+          throw makeError("PROTOCOL", "Unknown worker request.");
+        }
+
+        self.onmessage = async (event) => {
+          const message = event.data;
+          try {
+            const result = await dispatch(message);
+            if (result instanceof ArrayBuffer) {
+              self.postMessage({ id: message.id, ok: true, result }, [result]);
+            } else {
+              self.postMessage({ id: message.id, ok: true, result: null });
+            }
+          } catch (error) {
+            self.postMessage({
+              id: message.id,
+              ok: false,
+              error: {
+                name: error && error.name || "Error",
+                code: error && error.code || "WORKER",
+                message: error && error.message || "Cryptography worker failed."
+              }
+            });
+          }
+        };
+      `;
+
+      class AppError extends Error {
+        constructor(code, message) {
+          super(message);
+          this.name = "AppError";
+          this.code = code;
+        }
+      }
+
+      class RustCrypto {
+        constructor(module) {
+          const url = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+          this.worker = new Worker(url);
+          URL.revokeObjectURL(url);
+          this.closed = false;
+          this.nextId = 1;
+          this.pending = new Map();
+          this.worker.onmessage = (event) => this.receive(event.data);
+          this.worker.onerror = (event) => {
+            event.preventDefault();
+            this.terminate(new AppError("WASM", event.message || "The cryptography worker stopped."));
+          };
+          this.ready = this.request("init", { module });
+        }
+
+        receive(message) {
+          const pending = this.pending.get(message.id);
+          if (!pending) return;
+          this.pending.delete(message.id);
+          if (message.ok) {
+            pending.resolve(message.result);
+          } else {
+            const error = new AppError(message.error.code, message.error.message);
+            error.name = message.error.name;
+            pending.reject(error);
+          }
+        }
+
+        request(type, payload, transfer) {
+          if (this.closed) return Promise.reject(new AppError("CANCELLED", "Operation cancelled."));
+          return new Promise((resolve, reject) => {
+            const id = this.nextId++;
+            this.pending.set(id, { resolve, reject });
+            this.worker.postMessage({ id, type, ...payload }, transfer || []);
+          });
+        }
+
+        async derive(passwordBytes, salt, parameters) {
+          await this.ready;
+          const password = passwordBytes.buffer;
+          const saltBuffer = salt.slice().buffer;
+          await this.request("derive", {
+            password,
+            salt: saltBuffer,
+            memoryKib: parameters.memoryKib,
+            iterations: parameters.iterations,
+            parallelism: parameters.parallelism
+          }, [password, saltBuffer]);
+        }
+
+        async crypt(mode, nonce, aad, dataBuffer) {
+          await this.ready;
+          const nonceBuffer = nonce.slice().buffer;
+          const aadBuffer = aad.slice().buffer;
+          return this.request("crypt", { mode, nonce: nonceBuffer, aad: aadBuffer, data: dataBuffer }, [nonceBuffer, aadBuffer, dataBuffer]);
+        }
+
+        async dispose() {
+          if (this.closed) return;
+          try {
+            await this.request("dispose", {});
+          } catch (_) {
+            // Termination below still releases the worker's complete Wasm memory.
+          }
+          this.terminate();
+        }
+
+        terminate(reason) {
+          if (this.closed) return;
+          this.closed = true;
+          this.worker.terminate();
+          const error = reason || new AppError("CANCELLED", "Operation cancelled.");
+          for (const pending of this.pending.values()) pending.reject(error);
+          this.pending.clear();
+        }
+      }
+
+      const elements = {
+        warning: document.getElementById("browser-warning"),
+        choose: document.getElementById("choose-button"),
+        fileIcon: document.getElementById("file-icon"),
+        fileName: document.getElementById("file-name"),
+        fileMeta: document.getElementById("file-meta"),
+        encryptMode: document.getElementById("encrypt-mode"),
+        decryptMode: document.getElementById("decrypt-mode"),
+        password: document.getElementById("password"),
+        confirm: document.getElementById("confirm-password"),
+        confirmField: document.getElementById("confirm-field"),
+        passwordHelp: document.getElementById("password-help"),
+        actionNote: document.getElementById("action-note"),
+        action: document.getElementById("action-button"),
+        progressPanel: document.getElementById("progress-panel"),
+        progressTrack: document.getElementById("progress-track"),
+        progressBar: document.getElementById("progress-bar"),
+        progressLabel: document.getElementById("progress-label"),
+        progressValue: document.getElementById("progress-value"),
+        cancel: document.getElementById("cancel-button"),
+        outcome: document.getElementById("outcome"),
+        outcomeTitle: document.getElementById("outcome-title"),
+        outcomeDetail: document.getElementById("outcome-detail")
+      };
+
+      let selectedHandle = null;
+      let selectedFile = null;
+      let selectedInfo = null;
+      let mode = "encrypt";
+      let busy = false;
+      let currentRun = null;
+      let moduleFailure = null;
+
+      function decodeEmbeddedWasm() {
+        const encoded = document.getElementById("wasm-module").textContent.replace(/\s+/g, "");
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+        return bytes;
+      }
+
+      const canCompileWasm = typeof WebAssembly === "object" && typeof WebAssembly.compile === "function";
+      const wasmModulePromise = canCompileWasm
+        ? WebAssembly.compile(decodeEmbeddedWasm()).catch((error) => {
+            moduleFailure = error;
+            showUnsupported("The embedded Rust/WebAssembly engine could not be loaded in this browser.");
+            return null;
+          })
+        : Promise.resolve(null);
+
+      function equalBytes(left, right) {
+        if (left.length !== right.length) return false;
+        let difference = 0;
+        for (let index = 0; index < left.length; index++) difference |= left[index] ^ right[index];
+        return difference === 0;
+      }
+
+      function concatBytes(...parts) {
+        const length = parts.reduce((sum, part) => sum + part.length, 0);
+        const output = new Uint8Array(length);
+        let offset = 0;
+        for (const part of parts) {
+          output.set(part, offset);
+          offset += part.length;
+        }
+        return output;
+      }
+
+      function writeUint64(target, offset, value) {
+        new DataView(target.buffer, target.byteOffset, target.byteLength).setBigUint64(offset, BigInt(value), true);
+      }
+
+      function buildPrefix(originalSize, salt, noncePrefix) {
+        const prefix = new Uint8Array(PREFIX_SIZE);
+        const view = new DataView(prefix.buffer);
+        prefix.set(MAGIC, 0);
+        view.setUint16(8, VERSION, true);
+        view.setUint16(10, PREFIX_SIZE, true);
+        view.setUint16(12, SUITE, true);
+        view.setUint16(14, 0, true);
+        view.setUint32(16, MEMORY_KIB, true);
+        view.setUint32(20, ITERATIONS, true);
+        view.setUint32(24, PARALLELISM, true);
+        view.setUint32(28, CHUNK_SIZE, true);
+        view.setBigUint64(32, BigInt(originalSize), true);
+        prefix.set(salt, 40);
+        prefix.set(noncePrefix, 56);
+        return prefix;
+      }
+
+      function parseEnvelope(file, headerBytes) {
+        if (headerBytes.length < HEADER_SIZE || !equalBytes(headerBytes.subarray(0, 8), MAGIC)) {
+          throw new AppError("FORMAT", "This is not a PWCRYPT v1 file.");
+        }
+        const prefix = headerBytes.slice(0, PREFIX_SIZE);
+        const view = new DataView(prefix.buffer);
+        const version = view.getUint16(8, true);
+        const prefixSize = view.getUint16(10, true);
+        const suite = view.getUint16(12, true);
+        const flags = view.getUint16(14, true);
+        const memoryKib = view.getUint32(16, true);
+        const iterations = view.getUint32(20, true);
+        const parallelism = view.getUint32(24, true);
+        const chunkSize = view.getUint32(28, true);
+        const originalSizeBig = view.getBigUint64(32, true);
+        const reservedIsZero = prefix.subarray(72, 96).every((byte) => byte === 0);
+        const chunkSizeIsSafe = chunkSize >= 64 * 1024 && chunkSize <= 16 * 1024 * 1024 && (chunkSize & (chunkSize - 1)) === 0;
+
+        if (
+          version !== VERSION || prefixSize !== PREFIX_SIZE || suite !== SUITE || flags !== 0 ||
+          memoryKib !== MEMORY_KIB || iterations !== ITERATIONS || parallelism !== PARALLELISM ||
+          !chunkSizeIsSafe || !reservedIsZero || originalSizeBig > MAX_SAFE_BIGINT
+        ) {
+          throw new AppError("FORMAT", "The encrypted header is damaged or unsupported.");
+        }
+
+        const chunkSizeBig = BigInt(chunkSize);
+        const chunkCountBig = originalSizeBig === 0n ? 0n : (originalSizeBig + chunkSizeBig - 1n) / chunkSizeBig;
+        const expectedSizeBig = BigInt(HEADER_SIZE) + originalSizeBig + chunkCountBig * BigInt(TAG_SIZE);
+        if (expectedSizeBig > MAX_SAFE_BIGINT || BigInt(file.size) !== expectedSizeBig || chunkCountBig > MAX_SAFE_BIGINT) {
+          throw new AppError("FORMAT", "The encrypted file is truncated, has trailing data, or is too large.");
+        }
+
+        return {
+          kind: "encrypted",
+          prefix,
+          headerTag: headerBytes.slice(PREFIX_SIZE, HEADER_SIZE),
+          memoryKib,
+          iterations,
+          parallelism,
+          chunkSize,
+          originalSize: Number(originalSizeBig),
+          chunkCount: Number(chunkCountBig),
+          salt: prefix.slice(40, 56),
+          noncePrefix: prefix.slice(56, 72)
+        };
+      }
+
+      async function inspectFile(file) {
+        const headerBytes = new Uint8Array(await file.slice(0, Math.min(HEADER_SIZE, file.size)).arrayBuffer());
+        if (headerBytes.length < MAGIC.length || !equalBytes(headerBytes.subarray(0, MAGIC.length), MAGIC)) {
+          return { kind: "plain" };
+        }
+        try {
+          return parseEnvelope(file, headerBytes);
+        } catch (error) {
+          return { kind: "damaged", error };
+        }
+      }
+
+      function makeNonce(prefix, recordNumber) {
+        const nonce = new Uint8Array(24);
+        nonce.set(prefix, 0);
+        writeUint64(nonce, 16, recordNumber);
+        return nonce;
+      }
+
+      function makeHeaderAad(prefix) {
+        return concatBytes(HEADER_DOMAIN, prefix);
+      }
+
+      function makeChunkAad(prefix, index, plaintextLength) {
+        const suffix = new Uint8Array(12);
+        const view = new DataView(suffix.buffer);
+        view.setBigUint64(0, BigInt(index), true);
+        view.setUint32(8, plaintextLength, true);
+        return concatBytes(CHUNK_DOMAIN, prefix, suffix);
+      }
+
+      function plaintextLengthAt(meta, index) {
+        if (index < meta.chunkCount - 1) return meta.chunkSize;
+        return meta.originalSize - meta.chunkSize * index;
+      }
+
+      function hasLoneSurrogate(value) {
+        for (let index = 0; index < value.length; index++) {
+          const code = value.charCodeAt(index);
+          if (code >= 0xD800 && code <= 0xDBFF) {
+            const next = value.charCodeAt(index + 1);
+            if (!(next >= 0xDC00 && next <= 0xDFFF)) return true;
+            index++;
+          } else if (code >= 0xDC00 && code <= 0xDFFF) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function formatBytes(value) {
+        if (value === 0) return "0 bytes";
+        const units = ["bytes", "KiB", "MiB", "GiB", "TiB"];
+        const unit = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+        const amount = value / 1024 ** unit;
+        const digits = unit === 0 || amount >= 100 ? 0 : amount >= 10 ? 1 : 2;
+        return `${amount.toFixed(digits)} ${units[unit]}`;
+      }
+
+      function formatDuration(milliseconds) {
+        const seconds = milliseconds / 1000;
+        if (seconds < 10) return `${seconds.toFixed(1)}s`;
+        if (seconds < 60) return `${Math.round(seconds)}s`;
+        return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+      }
+
+      function showUnsupported(message) {
+        elements.warning.textContent = `${message} Use desktop Chrome or Edge in a top-level HTTPS, localhost, or trusted local-file context.`;
+        elements.warning.hidden = false;
+        updateEnabledState();
+      }
+
+      function setOutcome(kind, title, detail) {
+        elements.outcome.className = `outcome ${kind || ""}`.trim();
+        elements.outcomeTitle.textContent = title;
+        elements.outcomeDetail.textContent = detail;
+      }
+
+      function setProgress(fraction, label, indeterminate) {
+        const clamped = Math.max(0, Math.min(1, fraction));
+        const percent = Math.round(clamped * 100);
+        elements.progressLabel.textContent = label;
+        elements.progressValue.textContent = indeterminate ? "…" : `${percent}%`;
+        elements.progressBar.classList.toggle("indeterminate", Boolean(indeterminate));
+        elements.progressBar.style.width = indeterminate ? "36%" : `${percent}%`;
+        elements.progressTrack.setAttribute("aria-valuenow", String(percent));
+        if (indeterminate) elements.progressTrack.removeAttribute("aria-valuenow");
+      }
+
+      function updatePasswordHelp() {
+        if (mode === "decrypt") {
+          elements.passwordHelp.className = "password-help";
+          elements.passwordHelp.textContent = "Enter the password exactly as it was used. Wrong passwords and damaged files are reported identically.";
+          return;
+        }
+        const length = Array.from(elements.password.value).length;
+        if (length === 0) {
+          elements.passwordHelp.className = "password-help";
+          elements.passwordHelp.textContent = "Use a memorable passphrase of at least 12 characters. There is no password recovery.";
+        } else if (length < 12) {
+          elements.passwordHelp.className = "password-help warn";
+          elements.passwordHelp.textContent = `${12 - length} more character${12 - length === 1 ? "" : "s"} required for encryption.`;
+        } else {
+          elements.passwordHelp.className = "password-help good";
+          elements.passwordHelp.textContent = "Length requirement met. A longer, unique passphrase is safer.";
+        }
+      }
+
+      function updateModeControls() {
+        elements.encryptMode.setAttribute("aria-pressed", String(mode === "encrypt"));
+        elements.decryptMode.setAttribute("aria-pressed", String(mode === "decrypt"));
+        elements.confirmField.hidden = mode !== "encrypt";
+        elements.password.autocomplete = mode === "encrypt" ? "new-password" : "current-password";
+        elements.action.textContent = mode === "encrypt" ? "Encrypt & replace original" : "Decrypt & replace encrypted file";
+        elements.actionNote.textContent = mode === "encrypt"
+          ? "Encryption replaces the selected file after a successful staged write. Keep a backup until you have tested your password."
+          : "Decryption verifies the header and every chunk before plaintext is staged, then replaces the encrypted file in one commit.";
+        updatePasswordHelp();
+        updateEnabledState();
+      }
+
+      function updateEnabledState() {
+        const compatible = !elements.warning.hidden ? false : true;
+        elements.choose.disabled = busy || !compatible;
+        const noSelection = !selectedInfo;
+        elements.encryptMode.disabled = busy || (!noSelection && selectedInfo.kind !== "plain");
+        elements.decryptMode.disabled = busy || !compatible || (!noSelection && selectedInfo.kind !== "encrypted");
+        elements.encryptMode.disabled = elements.encryptMode.disabled || !compatible;
+        elements.password.disabled = busy || !compatible;
+        elements.confirm.disabled = busy || !compatible;
+        document.querySelectorAll(".reveal-button").forEach((button) => { button.disabled = busy || !compatible; });
+        const modeMatches = selectedInfo && (
+          (mode === "encrypt" && selectedInfo.kind === "plain") ||
+          (mode === "decrypt" && selectedInfo.kind === "encrypted")
+        );
+        elements.action.disabled = busy || !compatible || !modeMatches || Boolean(moduleFailure);
+      }
+
+      function setMode(nextMode) {
+        if (busy || nextMode === mode) return;
+        mode = nextMode;
+        updateModeControls();
+      }
+
+      function resetPasswordFields() {
+        elements.password.value = "";
+        elements.confirm.value = "";
+        elements.password.type = "password";
+        elements.confirm.type = "password";
+        elements.password.setAttribute("aria-invalid", "false");
+        elements.confirm.setAttribute("aria-invalid", "false");
+        document.querySelectorAll(".reveal-button").forEach((button) => {
+          button.textContent = "Show";
+          button.setAttribute("aria-label", "Show password");
+        });
+        updatePasswordHelp();
+      }
+
+      function clearSelection(detail) {
+        selectedHandle = null;
+        selectedFile = null;
+        selectedInfo = null;
+        elements.fileIcon.textContent = "FILE";
+        elements.fileName.textContent = "No file selected";
+        elements.fileMeta.textContent = detail || "Choose the file again before continuing.";
+        resetPasswordFields();
+        updateEnabledState();
+      }
+
+      async function setSelectedFile(handle, file, inspectedInfo) {
+        const info = inspectedInfo || await inspectFile(file);
+        resetPasswordFields();
+        selectedHandle = handle;
+        selectedFile = file;
+        selectedInfo = info;
+        const extension = file.name.includes(".") ? file.name.split(".").pop().slice(0, 4).toUpperCase() : "FILE";
+        elements.fileIcon.textContent = selectedInfo.kind === "encrypted" ? "LOCK" : selectedInfo.kind === "damaged" ? "ERR" : extension || "FILE";
+        elements.fileName.textContent = file.name;
+        if (selectedInfo.kind === "encrypted") {
+          elements.fileMeta.textContent = `${formatBytes(file.size)} encrypted · restores to ${formatBytes(selectedInfo.originalSize)}`;
+          mode = "decrypt";
+          setOutcome("", "Encrypted file detected", "PWCRYPT v1 header recognized. Enter its password to verify and decrypt it.");
+        } else if (selectedInfo.kind === "damaged") {
+          elements.fileMeta.textContent = `${formatBytes(file.size)} · damaged or unsupported PWCRYPT header`;
+          mode = "decrypt";
+          setOutcome("warning", "Lockbox header needs attention", "The file looks encrypted but its structure is invalid. Processing will not overwrite it.");
+        } else {
+          elements.fileMeta.textContent = `${formatBytes(file.size)} · ready for in-path encryption`;
+          mode = "encrypt";
+          setOutcome("", "Plain file selected", "Set a strong password. The encrypted result will replace this same pathname after commit.");
+        }
+        updateModeControls();
+      }
+
+      async function chooseFile() {
+        if (busy) return;
+        try {
+          const handles = await window.showOpenFilePicker({ multiple: false });
+          const handle = handles[0];
+          if (!handle || typeof handle.createWritable !== "function") throw new AppError("UNSUPPORTED", "This browser cannot write back to the selected file.");
+          await setSelectedFile(handle, await handle.getFile());
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+          showError(error);
+        }
+      }
+
+      function validatePassword() {
+        let passwordText = elements.password.value;
+        let confirmationText = elements.confirm.value;
+        if (!passwordText) throw new AppError("PASSWORD", "Enter a password before continuing.");
+        if (hasLoneSurrogate(passwordText)) throw new AppError("PASSWORD", "The password contains an invalid Unicode character. Retype it.");
+        if (mode === "encrypt" && Array.from(passwordText).length < 12) throw new AppError("PASSWORD", "Use at least 12 characters for a new encrypted file.");
+        if (mode === "encrypt" && passwordText !== confirmationText) throw new AppError("PASSWORD", "The password confirmation does not match.");
+        const passwordBytes = encoder.encode(passwordText);
+        passwordText = "";
+        confirmationText = "";
+        if (passwordBytes.byteLength > MAX_PASSWORD_BYTES) {
+          passwordBytes.fill(0);
+          throw new AppError("PASSWORD", "The UTF-8 password is longer than 1,024 bytes.");
+        }
+        return passwordBytes;
+      }
+
+      function assertNotCancelled() {
+        if (currentRun && currentRun.cancelled) throw new AppError("CANCELLED", "Operation cancelled.");
+      }
+
+      async function openExclusiveWriter(handle) {
+        try {
+          return await handle.createWritable({ keepExistingData: false, mode: "exclusive" });
+        } catch (error) {
+          if (error && error.name === "TypeError") {
+            return handle.createWritable({ keepExistingData: false });
+          }
+          throw error;
+        }
+      }
+
+      async function encryptFile(source, writer, crypto, passwordBytes) {
+        const salt = cryptoRandom(16);
+        const noncePrefix = cryptoRandom(16);
+        const prefix = buildPrefix(source.size, salt, noncePrefix);
+        const parameters = { memoryKib: MEMORY_KIB, iterations: ITERATIONS, parallelism: PARALLELISM };
+        setProgress(0, "Hardening password with Argon2id…", true);
+        await crypto.derive(passwordBytes, salt, parameters);
+        assertNotCancelled();
+
+        setProgress(0, "Authenticating encrypted header…", false);
+        const headerTag = await crypto.crypt("encrypt", makeNonce(noncePrefix, 0), makeHeaderAad(prefix), new ArrayBuffer(0));
+        await writer.write(prefix);
+        await writer.write(new Uint8Array(headerTag));
+
+        const chunkCount = source.size === 0 ? 0 : Math.ceil(source.size / CHUNK_SIZE);
+        for (let index = 0, offset = 0; index < chunkCount; index++) {
+          assertNotCancelled();
+          const plaintextLength = Math.min(CHUNK_SIZE, source.size - offset);
+          const plaintext = await source.slice(offset, offset + plaintextLength).arrayBuffer();
+          const plaintextView = new Uint8Array(plaintext);
+          let encrypted;
+          try {
+            if (plaintext.byteLength !== plaintextLength) throw new AppError("CHANGED", "The source file changed while it was being read.");
+            encrypted = await crypto.crypt(
+              "encrypt",
+              makeNonce(noncePrefix, index + 1),
+              makeChunkAad(prefix, index, plaintextLength),
+              plaintext
+            );
+          } finally {
+            try { plaintextView.fill(0); } catch (_) {}
+          }
+          const encryptedView = new Uint8Array(encrypted);
+          await writer.write(encryptedView);
+          encryptedView.fill(0);
+          offset += plaintextLength;
+          setProgress((index + 1) / chunkCount, `Encrypting chunk ${index + 1} of ${chunkCount}…`, false);
+        }
+        if (chunkCount === 0) setProgress(1, "Empty file authenticated and ready…", false);
+      }
+
+      async function authenticateHeader(meta, crypto) {
+        try {
+          const result = await crypto.crypt(
+            "decrypt",
+            makeNonce(meta.noncePrefix, 0),
+            makeHeaderAad(meta.prefix),
+            meta.headerTag.slice().buffer
+          );
+          new Uint8Array(result).fill(0);
+        } catch (error) {
+          if (error && error.code === "AUTH") throw new AppError("AUTH", "Wrong password or damaged/unsupported file.");
+          throw error;
+        }
+      }
+
+      async function decryptChunk(source, meta, crypto, index) {
+        const plaintextLength = plaintextLengthAt(meta, index);
+        const offset = HEADER_SIZE + index * (meta.chunkSize + TAG_SIZE);
+        const ciphertextLength = plaintextLength + TAG_SIZE;
+        const ciphertext = await source.slice(offset, offset + ciphertextLength).arrayBuffer();
+        if (ciphertext.byteLength !== ciphertextLength) throw new AppError("AUTH", "Wrong password or damaged/unsupported file.");
+        try {
+          return await crypto.crypt(
+            "decrypt",
+            makeNonce(meta.noncePrefix, index + 1),
+            makeChunkAad(meta.prefix, index, plaintextLength),
+            ciphertext
+          );
+        } catch (error) {
+          if (error && error.code === "AUTH") throw new AppError("AUTH", "Wrong password or damaged/unsupported file.");
+          throw error;
+        }
+      }
+
+      async function decryptFile(source, writer, crypto, passwordBytes, meta) {
+        setProgress(0, "Hardening password with Argon2id…", true);
+        await crypto.derive(passwordBytes, meta.salt, meta);
+        assertNotCancelled();
+        await authenticateHeader(meta, crypto);
+
+        // Pass one authenticates every chunk without staging plaintext.
+        for (let index = 0; index < meta.chunkCount; index++) {
+          assertNotCancelled();
+          const plaintext = await decryptChunk(source, meta, crypto, index);
+          new Uint8Array(plaintext).fill(0);
+          setProgress((index + 1) / Math.max(1, meta.chunkCount) * .5, `Verifying chunk ${index + 1} of ${meta.chunkCount}…`, false);
+        }
+        if (meta.chunkCount === 0) setProgress(.5, "Header verified; empty plaintext confirmed…", false);
+
+        // Pass two writes only after the entire encrypted input has authenticated.
+        for (let index = 0; index < meta.chunkCount; index++) {
+          assertNotCancelled();
+          const plaintext = await decryptChunk(source, meta, crypto, index);
+          const plaintextView = new Uint8Array(plaintext);
+          try {
+            await writer.write(plaintextView);
+          } finally {
+            plaintextView.fill(0);
+          }
+          setProgress(.5 + (index + 1) / Math.max(1, meta.chunkCount) * .5, `Restoring chunk ${index + 1} of ${meta.chunkCount}…`, false);
+        }
+        if (meta.chunkCount === 0) setProgress(1, "Empty file ready to restore…", false);
+      }
+
+      function cryptoRandom(length) {
+        const bytes = new Uint8Array(length);
+        crypto.getRandomValues(bytes);
+        return bytes;
+      }
+
+      async function withTabLock(callback) {
+        if (!navigator.locks || typeof navigator.locks.request !== "function") return callback();
+        return navigator.locks.request("atomic-lockbox-transform-v1", { mode: "exclusive", ifAvailable: true }, async (lock) => {
+          if (!lock) throw new AppError("BUSY", "Another Atomic Lockbox tab is already transforming a file.");
+          return callback();
+        });
+      }
+
+      async function performTransform(passwordBytes, operationMode) {
+        let writer = null;
+        let cryptoCore = null;
+        let commitStarted = false;
+        let abortFailed = false;
+        const startedAt = performance.now();
+
+        try {
+          assertNotCancelled();
+          const source = await selectedHandle.getFile();
+          if (source.size !== selectedFile.size || source.lastModified !== selectedFile.lastModified) {
+            throw new AppError("CHANGED", "The selected file changed after selection. Choose it again before continuing.");
+          }
+
+          const freshInfo = await inspectFile(source);
+          if (operationMode === "encrypt" && freshInfo.kind !== "plain") {
+            throw new AppError("MODE", "This file already looks encrypted. Choose Decrypt instead.");
+          }
+          if (operationMode === "decrypt" && freshInfo.kind !== "encrypted") {
+            throw new AppError("AUTH", "Wrong password or damaged/unsupported file.");
+          }
+
+          writer = await openExclusiveWriter(selectedHandle);
+          currentRun.writer = writer;
+          assertNotCancelled();
+
+          const wasmModule = await wasmModulePromise;
+          assertNotCancelled();
+          if (!wasmModule) throw new AppError("WASM", "The embedded Rust/WebAssembly engine is unavailable.");
+          cryptoCore = new RustCrypto(wasmModule);
+          currentRun.crypto = cryptoCore;
+          if (operationMode === "encrypt") {
+            await encryptFile(source, writer, cryptoCore, passwordBytes);
+          } else {
+            await decryptFile(source, writer, cryptoCore, passwordBytes, freshInfo);
+          }
+          assertNotCancelled();
+
+          const beforeCommit = await selectedHandle.getFile();
+          if (beforeCommit.size !== source.size || beforeCommit.lastModified !== source.lastModified) {
+            throw new AppError("CHANGED", "The file was modified by another program during processing.");
+          }
+          assertNotCancelled();
+
+          commitStarted = true;
+          currentRun.commitStarted = true;
+          elements.cancel.disabled = true;
+          setProgress(1, "Committing staged replacement…", true);
+          try {
+            await writer.close();
+          } catch (error) {
+            const closeError = new AppError("COMMIT", "The browser did not confirm the final replacement. Re-select and inspect the file before retrying.");
+            closeError.cause = error;
+            throw closeError;
+          }
+          writer = null;
+
+          const elapsed = formatDuration(performance.now() - startedAt);
+          try {
+            const committedHandle = selectedHandle;
+            const resultFile = await committedHandle.getFile();
+            const resultInfo = await inspectFile(resultFile);
+            const outputVerified = operationMode === "encrypt"
+              ? resultInfo.kind === "encrypted" && resultInfo.originalSize === source.size
+              : resultFile.size === freshInfo.originalSize;
+            if (!outputVerified) {
+              clearSelection("The committed result did not match the expected output. Inspect it before any retry.");
+              setOutcome("warning", "Commit needs manual verification", "The browser confirmed close, but the resulting file did not match the expected structure or size.");
+              return;
+            }
+            await setSelectedFile(committedHandle, resultFile, resultInfo);
+            if (operationMode === "encrypt") {
+              setOutcome("success", "Encryption committed", `${resultFile.name} now contains authenticated ciphertext. Completed in ${elapsed}.`);
+            } else {
+              setOutcome("success", "Decryption committed", `${resultFile.name} was restored in place after full authentication. Completed in ${elapsed}.`);
+            }
+          } catch (_) {
+            clearSelection("Replacement committed · choose the file again to inspect its new state");
+            setOutcome("warning", "Commit completed; verification unavailable", `The browser confirmed close in ${elapsed}, but the refreshed file could not be inspected.`);
+          }
+        } catch (error) {
+          if (writer && !commitStarted) {
+            try {
+              await writer.abort();
+            } catch (_) {
+              abortFailed = true;
+            }
+          }
+          if (abortFailed && error && error.code !== "COMMIT") {
+            const cleanupError = new AppError("ABORT", "Processing stopped, but the browser did not confirm cleanup of its staged write. Re-select and inspect the file.");
+            cleanupError.cause = error;
+            throw cleanupError;
+          }
+          throw error;
+        } finally {
+          if (cryptoCore) await cryptoCore.dispose();
+          try { if (passwordBytes.byteLength) passwordBytes.fill(0); } catch (_) {}
+        }
+      }
+
+      async function requestWritePermission() {
+        if (typeof selectedHandle.requestPermission !== "function") return;
+        let permission = "prompt";
+        if (typeof selectedHandle.queryPermission === "function") {
+          permission = await selectedHandle.queryPermission({ mode: "readwrite" });
+        }
+        if (permission !== "granted") permission = await selectedHandle.requestPermission({ mode: "readwrite" });
+        if (permission !== "granted") throw new AppError("PERMISSION", "Write permission is required to replace the selected file.");
+      }
+
+      async function beginTransform() {
+        if (busy || !selectedHandle) return;
+        let passwordBytes;
+        elements.password.setAttribute("aria-invalid", "false");
+        elements.confirm.setAttribute("aria-invalid", "false");
+        try {
+          passwordBytes = validatePassword();
+        } catch (error) {
+          if (error && error.code === "PASSWORD") {
+            const target = error.message.includes("confirmation") ? elements.confirm : elements.password;
+            target.setAttribute("aria-invalid", "true");
+            elements.passwordHelp.className = "password-help warn";
+            elements.passwordHelp.textContent = error.message;
+            target.focus();
+          }
+          showError(error);
+          return;
+        }
+
+        elements.password.value = "";
+        elements.confirm.value = "";
+        updatePasswordHelp();
+        busy = true;
+        currentRun = { cancelled: false, writer: null, crypto: null, commitStarted: false };
+        elements.progressPanel.hidden = false;
+        elements.cancel.hidden = false;
+        elements.cancel.disabled = false;
+        setOutcome("", "Processing locally", "The selected file remains at its current committed state until the final close step.");
+        setProgress(0, "Requesting write access…", true);
+        updateEnabledState();
+        elements.cancel.focus({ preventScroll: true });
+        const operationMode = mode;
+
+        try {
+          // Kept at the top of this user-initiated action so the browser may show its permission prompt.
+          await requestWritePermission();
+          assertNotCancelled();
+          await withTabLock(() => performTransform(passwordBytes, operationMode));
+        } catch (error) {
+          try { if (passwordBytes.byteLength) passwordBytes.fill(0); } catch (_) {}
+          showError(error);
+        } finally {
+          busy = false;
+          currentRun = null;
+          elements.progressPanel.hidden = true;
+          updateEnabledState();
+          elements.outcome.focus({ preventScroll: true });
+        }
+      }
+
+      function cancelTransform() {
+        if (!currentRun || currentRun.commitStarted) return;
+        currentRun.cancelled = true;
+        elements.cancel.disabled = true;
+        setProgress(0, "Cancelling and discarding staged output…", true);
+        if (currentRun.crypto) currentRun.crypto.terminate(new AppError("CANCELLED", "Operation cancelled."));
+      }
+
+      function showError(error) {
+        const code = error && error.code;
+        if (code === "CANCELLED") {
+          setOutcome("", "Cancelled", "The staged write was discarded before commit; the selected file was not intentionally replaced.");
+          return;
+        }
+        if (code === "AUTH" || code === "FORMAT") {
+          setOutcome("error", "Could not authenticate this file", "Wrong password or damaged/unsupported file. Nothing was committed.");
+          return;
+        }
+        if (code === "COMMIT" || code === "ABORT") {
+          clearSelection("File state is uncertain. Choose and inspect the file again before any retry.");
+          setOutcome("warning", "File state needs inspection", error.message);
+          return;
+        }
+        if (code === "PASSWORD" || code === "MODE" || code === "CHANGED" || code === "BUSY" || code === "PERMISSION") {
+          if (code === "MODE" || code === "CHANGED") {
+            clearSelection("The file changed state. Choose it again before continuing.");
+          }
+          setOutcome(code === "CHANGED" ? "warning" : "error", "Cannot continue", error.message);
+          return;
+        }
+        if (error && error.name === "NotAllowedError") {
+          setOutcome("error", "Write access was not granted", "Allow read/write access when the browser asks, then try again.");
+          return;
+        }
+        if (error && error.name === "NoModificationAllowedError") {
+          setOutcome("error", "The file is already in use", "Close the other writer or application using this file, then try again.");
+          return;
+        }
+        if (error && (error.name === "QuotaExceededError" || error.name === "NotReadableError")) {
+          setOutcome("error", "The staged write could not finish", "Check free disk space, file availability, and other programs using it. Nothing was intentionally committed.");
+          return;
+        }
+        setOutcome("error", "Unexpected failure", error && error.message ? error.message : "The operation stopped before a confirmed commit.");
+      }
+
+      elements.choose.addEventListener("click", chooseFile);
+      elements.encryptMode.addEventListener("click", () => setMode("encrypt"));
+      elements.decryptMode.addEventListener("click", () => setMode("decrypt"));
+      elements.password.addEventListener("input", () => {
+        elements.password.setAttribute("aria-invalid", "false");
+        updatePasswordHelp();
+      });
+      elements.confirm.addEventListener("input", () => {
+        elements.confirm.setAttribute("aria-invalid", "false");
+      });
+      elements.action.addEventListener("click", beginTransform);
+      elements.cancel.addEventListener("click", cancelTransform);
+      document.querySelectorAll(".reveal-button").forEach((button) => {
+        button.addEventListener("click", () => {
+          const input = document.getElementById(button.dataset.reveal);
+          const reveal = input.type === "password";
+          input.type = reveal ? "text" : "password";
+          button.textContent = reveal ? "Hide" : "Show";
+          button.setAttribute("aria-label", `${reveal ? "Hide" : "Show"} password`);
+        });
+      });
+
+      const hasRequiredPlatform =
+        typeof window.showOpenFilePicker === "function" &&
+        typeof Worker === "function" &&
+        typeof WebAssembly === "object" &&
+        typeof BigInt === "function" &&
+        window.crypto && typeof window.crypto.getRandomValues === "function";
+
+      if (!hasRequiredPlatform || !window.isSecureContext) {
+        showUnsupported(!window.isSecureContext
+          ? "Direct file access is blocked because this page is not in a secure context."
+          : "This browser does not expose the direct local-file APIs this utility requires.");
+      } else {
+        updateModeControls();
+      }
+    })();
+  </script>
+
+  <!--
+    The embedded Wasm above is compiled from Rust 1.97.1 with:
+      argon2 = 0.5.3 (alloc + zeroize)
+      chacha20poly1305 = 0.10.1 (no default features)
+      zeroize = 1.9.0
+    The exact release-path Rust source used to build it is included below so
+    this remains a single-file, inspectable artifact. This inert script is not
+    executed (the separate native-only test module is omitted).
+  -->
+  <script id="rust-source" type="text/plain">
+use argon2::{Algorithm, Argon2, Block, Params, Version};
+use chacha20poly1305::{aead::{AeadInPlace, KeyInit}, Key, Tag, XChaCha20Poly1305, XNonce};
+use std::{mem, ptr, slice};
+use zeroize::Zeroize;
+
+const KEY_LEN: usize = 32;
+const NONCE_LEN: usize = 24;
+const TAG_LEN: usize = 16;
+
+#[no_mangle]
+pub extern "C" fn abi_version() -> u32 { 1 }
+
+#[no_mangle]
+pub extern "C" fn allocate(len: usize) -> *mut u8 {
+    let mut bytes = vec![0u8; len.max(1)].into_boxed_slice();
+    let pointer = bytes.as_mut_ptr();
+    mem::forget(bytes);
+    pointer
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn deallocate(pointer: *mut u8, len: usize) {
+    if !pointer.is_null() { drop(Box::from_raw(slice::from_raw_parts_mut(pointer, len.max(1)))); }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn wipe(pointer: *mut u8, len: usize) {
+    if pointer.is_null() { return; }
+    for index in 0..len { ptr::write_volatile(pointer.add(index), 0); }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn derive_key(
+    password_pointer: *const u8, password_len: usize,
+    salt_pointer: *const u8, salt_len: usize,
+    memory_kib: u32, iterations: u32, parallelism: u32,
+    output_pointer: *mut u8,
+) -> i32 {
+    if password_pointer.is_null() || salt_pointer.is_null() || output_pointer.is_null()
+        || password_len == 0 || password_len > 1024 || !(8..=64).contains(&salt_len) { return -1; }
+    let params = match Params::new(memory_kib, iterations, parallelism, Some(KEY_LEN)) {
+        Ok(value) => value, Err(_) => return -2,
+    };
+    let password = slice::from_raw_parts(password_pointer, password_len);
+    let salt = slice::from_raw_parts(salt_pointer, salt_len);
+    let output = slice::from_raw_parts_mut(output_pointer, KEY_LEN);
+    let block_count = params.block_count();
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+    let mut memory = vec![Block::default(); block_count];
+    let result = argon2.hash_password_into_with_memory(password, salt, output, &mut memory);
+    memory.zeroize();
+    match result { Ok(()) => 0, Err(_) => { output.zeroize(); -3 } }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn encrypt_in_place(
+    key_pointer: *const u8, nonce_pointer: *const u8,
+    aad_pointer: *const u8, aad_len: usize,
+    data_pointer: *mut u8, plaintext_len: usize,
+) -> i32 {
+    if key_pointer.is_null() || nonce_pointer.is_null() || aad_pointer.is_null() || data_pointer.is_null() { return -1; }
+    let key = Key::from_slice(slice::from_raw_parts(key_pointer, KEY_LEN));
+    let nonce = XNonce::from_slice(slice::from_raw_parts(nonce_pointer, NONCE_LEN));
+    let aad = slice::from_raw_parts(aad_pointer, aad_len);
+    let data = slice::from_raw_parts_mut(data_pointer, plaintext_len + TAG_LEN);
+    let cipher = XChaCha20Poly1305::new(key);
+    match cipher.encrypt_in_place_detached(nonce, aad, &mut data[..plaintext_len]) {
+        Ok(tag) => { data[plaintext_len..].copy_from_slice(&tag); 0 }
+        Err(_) => { data.zeroize(); -2 }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn decrypt_in_place(
+    key_pointer: *const u8, nonce_pointer: *const u8,
+    aad_pointer: *const u8, aad_len: usize,
+    data_pointer: *mut u8, ciphertext_len: usize,
+) -> i32 {
+    if key_pointer.is_null() || nonce_pointer.is_null() || aad_pointer.is_null()
+        || data_pointer.is_null() || ciphertext_len < TAG_LEN { return -1; }
+    let key = Key::from_slice(slice::from_raw_parts(key_pointer, KEY_LEN));
+    let nonce = XNonce::from_slice(slice::from_raw_parts(nonce_pointer, NONCE_LEN));
+    let aad = slice::from_raw_parts(aad_pointer, aad_len);
+    let data = slice::from_raw_parts_mut(data_pointer, ciphertext_len);
+    let plaintext_len = ciphertext_len - TAG_LEN;
+    let (message, tag_bytes) = data.split_at_mut(plaintext_len);
+    let tag = Tag::from_slice(tag_bytes);
+    let cipher = XChaCha20Poly1305::new(key);
+    match cipher.decrypt_in_place_detached(nonce, aad, message, tag) {
+        Ok(()) => { tag_bytes.zeroize(); 0 }
+        Err(_) => { data.zeroize(); -2 }
+    }
+}
+  </script>
+</body>
+</html>
