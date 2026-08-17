@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rust + WASM File Encryptor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .drop-zone {
+      transition: all 0.2s ease;
+    }
+    .drop-zone.dragover {
+      border-color: #22d3ee;
+      background-color: rgba(34, 211, 238, 0.08);
+      transform: scale(1.01);
+    }
+    .btn {
+      transition: all 0.15s ease;
+    }
+    .btn:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+    .progress-bar {
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="max-w-2xl mx-auto px-4 py-10">
+    <!-- Header -->
+    <header class="text-center mb-10">
+      <div class="inline-flex items-center gap-3 mb-3">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight">File Encryptor</h1>
+      </div>
+      <p class="text-slate-400 text-sm">
+        AES-256-GCM + Argon2 · Powered by <span class="text-cyan-400 font-medium">Rust</span> &amp; <span class="text-orange-400 font-medium">WebAssembly</span>
+      </p>
+    </header>
+
+    <!-- Status / Loading -->
+    <div id="loading" class="text-center py-16">
+      <div class="inline-block w-10 h-10 border-4 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin mb-4"></div>
+      <p class="text-slate-400">Loading WebAssembly module…</p>
+    </div>
+
+    <!-- Main App (hidden until WASM ready) -->
+    <div id="app" class="hidden space-y-6">
+      <!-- Drop Zone -->
+      <div id="dropZone" class="drop-zone border-2 border-dashed border-slate-700 rounded-2xl p-8 text-center cursor-pointer hover:border-slate-500 bg-slate-900/50">
+        <input type="file" id="fileInput" class="hidden" />
+        <div id="dropContent">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-slate-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+          <p class="text-slate-300 font-medium mb-1">Drop a file here or click to select</p>
+          <p class="text-slate-500 text-sm">Any file type · processed entirely in your browser</p>
+        </div>
+        <div id="fileInfo" class="hidden">
+          <div class="flex items-center justify-center gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <div class="text-left">
+              <p id="fileName" class="font-medium text-slate-200 mono text-sm truncate max-w-xs"></p>
+              <p id="fileSize" class="text-slate-500 text-xs"></p>
+            </div>
+            <button id="clearFile" class="ml-2 text-slate-500 hover:text-red-400 transition" title="Clear file">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div>
+        <label for="password" class="block text-sm font-medium text-slate-400 mb-2">Password</label>
+        <div class="relative">
+          <input
+            type="password"
+            id="password"
+            placeholder="Enter a strong password…"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 pr-12 text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition mono"
+            autocomplete="off"
+          />
+          <button type="button" id="togglePw" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+        <p class="text-xs text-slate-600 mt-1.5">Password never leaves your device. Key derived with Argon2.</p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-3">
+        <button id="encryptBtn" class="btn flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-cyan-900/30 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          Encrypt
+        </button>
+        <button id="decryptBtn" class="btn flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-semibold py-3.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+          </svg>
+          Decrypt
+        </button>
+      </div>
+
+      <!-- Progress / Status -->
+      <div id="status" class="hidden">
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <div class="flex items-center gap-3 mb-2">
+            <div id="statusSpinner" class="w-4 h-4 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin"></div>
+            <p id="statusText" class="text-sm text-slate-300"></p>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+            <div id="progressBar" class="progress-bar h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div id="result" class="hidden">
+        <div class="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-5">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-emerald-300 mb-1" id="resultTitle">Done!</p>
+              <p class="text-sm text-slate-400 mb-3" id="resultDesc"></p>
+              <button id="downloadBtn" class="btn inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium px-4 py-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Result
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div id="error" class="hidden">
+        <div class="bg-red-950/40 border border-red-800/50 rounded-xl p-4 flex items-start gap-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p id="errorText" class="text-sm text-red-300"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-xs text-slate-600 space-y-1">
+      <p>Everything runs locally in your browser. No data is uploaded.</p>
+      <p class="mono">AES-256-GCM · Argon2id · Rust → WASM</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    import init, { encrypt, decrypt } from './pkg/file_encryptor_wasm.js';
+
+    let wasmReady = false;
+    let selectedFile = null;
+    let resultBlob = null;
+    let resultFilename = '';
+
+    const $ = (id) => document.getElementById(id);
+
+    // UI elements
+    const loading = $('loading');
+    const app = $('app');
+    const dropZone = $('dropZone');
+    const fileInput = $('fileInput');
+    const dropContent = $('dropContent');
+    const fileInfo = $('fileInfo');
+    const fileName = $('fileName');
+    const fileSize = $('fileSize');
+    const clearFile = $('clearFile');
+    const password = $('password');
+    const togglePw = $('togglePw');
+    const encryptBtn = $('encryptBtn');
+    const decryptBtn = $('decryptBtn');
+    const status = $('status');
+    const statusText = $('statusText');
+    const statusSpinner = $('statusSpinner');
+    const progressBar = $('progressBar');
+    const result = $('result');
+    const resultTitle = $('resultTitle');
+    const resultDesc = $('resultDesc');
+    const downloadBtn = $('downloadBtn');
+    const errorBox = $('error');
+    const errorText = $('errorText');
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    function showError(msg) {
+      errorText.textContent = msg;
+      errorBox.classList.remove('hidden');
+      result.classList.add('hidden');
+      status.classList.add('hidden');
+    }
+
+    function clearError() {
+      errorBox.classList.add('hidden');
+    }
+
+    function setBusy(busy, msg = '') {
+      encryptBtn.disabled = busy || !selectedFile;
+      decryptBtn.disabled = busy || !selectedFile;
+      if (busy) {
+        status.classList.remove('hidden');
+        result.classList.add('hidden');
+        clearError();
+        statusText.textContent = msg;
+        statusSpinner.classList.remove('hidden');
+        progressBar.style.width = '30%';
+      } else {
+        statusSpinner.classList.add('hidden');
+      }
+    }
+
+    function setFile(file) {
+      selectedFile = file;
+      if (file) {
+        dropContent.classList.add('hidden');
+        fileInfo.classList.remove('hidden');
+        fileName.textContent = file.name;
+        fileSize.textContent = formatSize(file.size);
+        encryptBtn.disabled = false;
+        decryptBtn.disabled = false;
+      } else {
+        dropContent.classList.remove('hidden');
+        fileInfo.classList.add('hidden');
+        encryptBtn.disabled = true;
+        decryptBtn.disabled = true;
+      }
+      clearError();
+      result.classList.add('hidden');
+      resultBlob = null;
+    }
+
+    // Drag & drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) setFile(fileInput.files[0]);
+    });
+    clearFile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.value = '';
+      setFile(null);
+    });
+
+    // Password toggle
+    togglePw.addEventListener('click', () => {
+      const isPw = password.type === 'password';
+      password.type = isPw ? 'text' : 'password';
+    });
+
+    // Download
+    downloadBtn.addEventListener('click', () => {
+      if (!resultBlob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(resultBlob);
+      a.download = resultFilename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    async function process(mode) {
+      if (!selectedFile || !wasmReady) return;
+      const pw = password.value;
+      if (!pw) {
+        showError('Please enter a password.');
+        return;
+      }
+
+      setBusy(true, mode === 'encrypt' ? 'Encrypting… (deriving key with Argon2)' : 'Decrypting…');
+      progressBar.style.width = '40%';
+
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const data = new Uint8Array(arrayBuffer);
+        progressBar.style.width = '60%';
+
+        // Yield to UI
+        await new Promise(r => setTimeout(r, 20));
+
+        let output;
+        if (mode === 'encrypt') {
+          output = encrypt(data, pw);
+          resultFilename = selectedFile.name + '.enc';
+          resultTitle.textContent = 'File encrypted successfully';
+          resultDesc.textContent = `Output size: ${formatSize(output.length)}. The .enc file contains salt + nonce + ciphertext.`;
+        } else {
+          output = decrypt(data, pw);
+          // try to restore original name
+          let name = selectedFile.name;
+          if (name.endsWith('.enc')) name = name.slice(0, -4);
+          else name = name + '.decrypted';
+          resultFilename = name;
+          resultTitle.textContent = 'File decrypted successfully';
+          resultDesc.textContent = `Output size: ${formatSize(output.length)}.`;
+        }
+
+        progressBar.style.width = '100%';
+        resultBlob = new Blob([output]);
+        setBusy(false);
+        status.classList.add('hidden');
+        result.classList.remove('hidden');
+      } catch (err) {
+        setBusy(false);
+        status.classList.add('hidden');
+        const msg = err?.message || err?.toString() || String(err);
+        showError(msg);
+      }
+    }
+
+    encryptBtn.addEventListener('click', () => process('encrypt'));
+    decryptBtn.addEventListener('click', () => process('decrypt'));
+
+    // Initialize WASM
+    try {
+      await init();
+      wasmReady = true;
+      loading.classList.add('hidden');
+      app.classList.remove('hidden');
+      encryptBtn.disabled = true;
+      decryptBtn.disabled = true;
+    } catch (e) {
+      loading.innerHTML = `
+        <p class="text-red-400 font-medium mb-2">Failed to load WebAssembly</p>
+        <p class="text-slate-500 text-sm max-w-md mx-auto">${e.message || e}</p>
+        <p class="text-slate-600 text-xs mt-4">Make sure you are serving this page over HTTP (not file://).<br>
+        Try: <code class="mono text-cyan-600">python3 -m http.server</code> in this folder.</p>
+      `;
+    }
+  </script>
+</body>
+</html>
