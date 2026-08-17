@@ -1,5 +1,8 @@
 # Rust + WASM File Encryptor
 
+This one needs a web server to run, it is not one of the easy ones that you can run locally on your pc. It is very easy to run tho. 
+
+
 A single-page web app that encrypts and decrypts files entirely in the browser using **Rust compiled to WebAssembly**.
 
 ## Features
