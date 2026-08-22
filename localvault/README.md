@@ -1,6 +1,6 @@
 # LocalVault
 
-LocalVault is a local-first, single-page file encryption app. Files are read in
+LocalVault is a local-first, single-page file encryption app. In other words, the entire app is in localvault.html. Files are read in
 4 MiB chunks, encrypted in a Web Worker by a Rust WebAssembly module, and never
 sent to a server. The project has no JavaScript package manager, runtime
 framework, cookies, analytics, remote fonts, or network API.
